@@ -1,0 +1,274 @@
+package com.databricks.jdbc.integration.benchmarking;
+
+import static com.databricks.jdbc.integration.IntegrationTestUtil.*;
+
+import java.sql.*;
+import java.time.LocalDateTime;
+import java.util.Enumeration;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+
+public class MetadataBenchmarkingTests {
+
+  private Connection connection;
+  private static final int NUM_SCHEMAS = 10;
+  private static final int NUM_TABLES = 10;
+  private static final int NUM_COLUMNS = 10;
+
+  private static final int NUM_SECTIONS = 7;
+
+  private static final int ATTEMPTS = 30;
+
+  private static final String BASE_SCHEMA_NAME = "jdbc_new_metadata_benchmark_schema";
+
+  private static String RESULTS_TABLE =
+          "main.jdbc_new_metadata_benchmark_schema.benchmarking_results";
+
+  private static final String BASE_TABLE_NAME = "table";
+
+  long totalTimesForSection[][] = new long[2][NUM_SECTIONS];
+  double avgTimesForSection[][] = new double[2][NUM_SECTIONS];
+
+  @BeforeEach
+  void setUp() throws SQLException {
+    // No setup needed here since we will handle connections in the test method
+  }
+
+  @AfterEach
+  void tearDown() throws SQLException {
+    if (connection != null && !connection.isClosed()) {
+      connection.close();
+    }
+  }
+
+  static Stream<String> modeProvider() {
+    return Stream.of("SEA", "THRIFT");
+  }
+
+  @ParameterizedTest
+  @MethodSource("modeProvider")
+  void benchmarkDrivers(String mode) throws SQLException {
+    setUpMode(mode);
+    runTestsForDriver(0); // Test for OSS driver
+    switchDriver(mode);
+    runTestsForDriver(1); // Test for Databricks driver
+    DriverManager.registerDriver(new com.databricks.jdbc.driver.DatabricksDriver());
+    insertResultsIntoTable();
+  }
+
+  private void setUpMode(String mode) throws SQLException {
+    switch (mode) {
+      case "SEA":
+        connection = getValidJDBCConnection();
+        RESULTS_TABLE = "main.jdbc_new_metadata_benchmark_schema.benchmarking_results";
+        break;
+      case "THRIFT":
+        connection =
+                DriverManager.getConnection(
+                        "jdbc:databricks://e2-dogfood.staging.cloud.databricks.com:443/default;ssl=1;AuthMech=3;httpPath=sql/protocolv1/o/6051921418418893/1115-130834-ms4m0yv",
+                        "token",
+                        getDatabricksDogfoodToken());
+        RESULTS_TABLE = "main.jdbc_metadata_benchmarking_thrift.benchmarking_results";
+        break;
+      default:
+        throw new IllegalArgumentException("Invalid testing mode");
+    }
+    setUpSchemas();
+    setUpTables();
+  }
+
+  private void runTestsForDriver(int recording) throws SQLException {
+    long startTime = System.currentTimeMillis();
+    measureMetadataPerformance(recording);
+    long endTime = System.currentTimeMillis();
+    System.out.println("Time taken by " + (recording == 0 ? "OSS JDBC" : "Databricks JDBC") + ": " + (endTime - startTime) + "ms");
+  }
+
+  private void switchDriver(String mode) throws SQLException {
+    connection.close();
+    Enumeration<Driver> drivers = DriverManager.getDrivers();
+
+    while (drivers.hasMoreElements()) {
+      Driver driver = drivers.nextElement();
+      if (driver.getClass().getName().contains("DatabricksDriver")) {
+        DriverManager.deregisterDriver(driver);
+      }
+    }
+
+    switch (mode) {
+      case "SEA":
+        connection = DriverManager.getConnection(getJDBCUrl(), "token", getDatabricksToken());
+        break;
+      case "THRIFT":
+        connection =
+                DriverManager.getConnection(
+                        "jdbc:databricks://e2-dogfood.staging.cloud.databricks.com:443/default;ssl=1;AuthMech=3;httpPath=sql/protocolv1/o/6051921418418893/1115-130834-ms4m0yv",
+                        "token",
+                        getDatabricksDogfoodToken());
+        break;
+      default:
+        throw new IllegalArgumentException("Invalid testing mode");
+    }
+  }
+
+  private void setUpSchemas() {
+    for (int i = 0; i < NUM_SCHEMAS; i++) {
+      executeSQL(
+              "CREATE SCHEMA IF NOT EXISTS " + getDatabricksCatalog() + "." + BASE_SCHEMA_NAME + i);
+      System.out.println("Created schema " + i);
+    }
+  }
+
+  private void setUpTables() {
+    for (int i = 0; i < NUM_SCHEMAS; i++) {
+      for (int j = 0; j < NUM_TABLES; j++) {
+        executeSQL(
+                "CREATE TABLE IF NOT EXISTS "
+                        + getDatabricksCatalog()
+                        + "."
+                        + BASE_SCHEMA_NAME
+                        + i
+                        + "."
+                        + BASE_TABLE_NAME
+                        + j
+                        + " "
+                        + getColumnString());
+      }
+      System.out.println("Created tables for schema " + i);
+    }
+  }
+
+  private String getColumnString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("(id INT");
+    for (int i = 0; i < NUM_COLUMNS; i++) {
+      sb.append(", col" + i + " STRING");
+    }
+    sb.append(")");
+    return sb.toString();
+  }
+
+  private void tearDownSchemas() {
+    for (int i = 0; i < NUM_SCHEMAS; i++) {
+      executeSQL(
+              "DROP SCHEMA IF EXISTS "
+                      + getDatabricksCatalog()
+                      + "."
+                      + BASE_SCHEMA_NAME
+                      + i
+                      + " CASCADE");
+    }
+  }
+
+  void measureMetadataPerformance(int recording) throws SQLException {
+    DatabaseMetaData metaData = connection.getMetaData();
+    System.out.println("STARTED MEASURING METADATA PERFORMANCE...");
+
+    for (int section = 0; section < NUM_SECTIONS; section++) {
+      long startTime = System.currentTimeMillis();
+      try {
+        switch (section) {
+          case 0:
+            System.out.println("START OF SECTION 1");
+            for (int i = 0; i < ATTEMPTS; i++) {
+              metaData.getSchemas(getDatabricksCatalog(), "%");
+            }
+            break;
+          case 1:
+            System.out.println("START OF SECTION 2");
+            for (int i = 0; i < ATTEMPTS; i++) {
+              metaData.getSchemas(getDatabricksCatalog(), BASE_SCHEMA_NAME + "%");
+            }
+            break;
+          case 2:
+            System.out.println("START OF SECTION 3");
+            for (int i = 0; i < ATTEMPTS; i++) {
+              metaData.getTables(getDatabricksCatalog(), "%", "%", null);
+            }
+            break;
+          case 3:
+            System.out.println("START OF SECTION 4");
+            for (int i = 0; i < ATTEMPTS; i++) {
+              metaData.getTables(getDatabricksCatalog(), BASE_SCHEMA_NAME + "0", "%", null);
+            }
+            break;
+          case 4:
+            System.out.println("START OF SECTION 5");
+            for (int i = 0; i < ATTEMPTS; i++) {
+              metaData.getColumns(getDatabricksCatalog(), "%", "%", "%");
+            }
+            break;
+          case 5:
+            System.out.println("START OF SECTION 6");
+            for (int i = 0; i < ATTEMPTS; i++) {
+              metaData.getColumns(getDatabricksCatalog(), BASE_SCHEMA_NAME + "0", "%", "%");
+            }
+            break;
+          case 6:
+            System.out.println("START OF SECTION 7");
+            for (int i = 0; i < ATTEMPTS; i++) {
+              metaData.getColumns(
+                      getDatabricksCatalog(), BASE_SCHEMA_NAME + "0", BASE_TABLE_NAME + "0", null);
+            }
+            break;
+          default:
+            throw new IllegalArgumentException("Invalid section number");
+        }
+        long endTime = System.currentTimeMillis();
+        totalTimesForSection[recording][section] = endTime - startTime;
+        avgTimesForSection[recording][section] = totalTimesForSection[recording][section] / ATTEMPTS;
+        System.out.println("END OF SECTION " + (section + 1));
+      } catch (SQLException e) {
+        e.printStackTrace();
+        totalTimesForSection[recording][section] = 0;
+        avgTimesForSection[recording][section] = 0;
+        System.out.println("ERROR IN SECTION " + (section + 1));
+      }
+    }
+  }
+
+  private void insertResultsIntoTable() throws SQLException {
+    connection = getBenchfoodJDBCConnection();
+    // SQL statement with placeholders
+    String sql =
+            "INSERT INTO "
+                    + RESULTS_TABLE
+                    + "(DateTime, "
+                    + "s1_avg_oss, s1_tot_oss, s1_avg_db, s1_tot_db, "
+                    + "s2_avg_oss, s2_tot_oss, s2_avg_db, s2_tot_db, "
+                    + "s3_avg_oss, s3_tot_oss, s3_avg_db, s3_tot_db, "
+                    + "s4_avg_oss, s4_tot_oss, s4_avg_db, s4_tot_db, "
+                    + "s5_avg_oss, s5_tot_oss, s5_avg_db, s5_tot_db, "
+                    + "s6_avg_oss, s6_tot_oss, s6_avg_db, s6_tot_db, "
+                    + "s7_avg_oss, s7_tot_oss, s7_avg_db, s7_tot_db) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+    try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+      // Set the TIMESTAMP for the current date and time
+      stmt.setTimestamp(1, java.sql.Timestamp.valueOf(LocalDateTime.now()));
+
+      // Loop to set the values for each section
+      int parameterIndex = 2; // Start after the TIMESTAMP
+      for (int i = 0; i < NUM_SECTIONS; i++) {
+        stmt.setDouble(parameterIndex++, avgTimesForSection[0][i]); // sX_avg_oss
+        stmt.setLong(parameterIndex++, totalTimesForSection[0][i]); // sX_tot_oss
+        stmt.setDouble(parameterIndex++, avgTimesForSection[1][i]); // sX_avg_db
+        stmt.setLong(parameterIndex++, totalTimesForSection[1][i]); // sX_tot_db
+      }
+
+      // Execute the insert operation
+      stmt.executeUpdate();
+      System.out.println("Data successfully logged");
+    } catch (SQLException e) {
+      e.printStackTrace();
+      System.out.println("Error logging data");
+    }
+  }
+
+  private String getDatabricksCatalog() {
+    return "jdbcbenchmarkingcatalog";
+  }
+}
