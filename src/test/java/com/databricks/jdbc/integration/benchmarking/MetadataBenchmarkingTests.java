@@ -106,7 +106,7 @@ public class MetadataBenchmarkingTests {
 
     switch (mode) {
       case "SEA":
-        connection = DriverManager.getConnection(getJDBCUrl(), "token", getDatabricksToken());
+        connection = DriverManager.getConnection(getDogfoodJDBCUrl(), "token", getDogfoodJDBCUrl());
         break;
       case "THRIFT":
         connection =
