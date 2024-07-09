@@ -62,7 +62,8 @@ public class MetadataBenchmarkingTests {
   private void setUpMode(String mode) throws SQLException {
     switch (mode) {
       case "SEA":
-        connection = getValidJDBCConnection();
+        // Currently using dogfood since we don't have new metadata support in test warehouse
+        connection = getDogfoodJDBCConnection();
         RESULTS_TABLE = "main.jdbc_new_metadata_benchmark_schema.benchmarking_results";
         break;
       case "THRIFT":
@@ -105,7 +106,8 @@ public class MetadataBenchmarkingTests {
 
     switch (mode) {
       case "SEA":
-        connection = DriverManager.getConnection(getJDBCUrl(), "token", getDatabricksToken());
+        connection =
+            DriverManager.getConnection(getDogfoodJDBCUrl(), "token", getDatabricksDogfoodToken());
         break;
       case "THRIFT":
         connection =
