@@ -62,7 +62,7 @@ public class MetadataBenchmarkingTests {
   private void setUpMode(String mode) throws SQLException {
     switch (mode) {
       case "SEA":
-        connection = getValidJDBCConnection();
+        connection = getDogfoodJDBCConnection();
         RESULTS_TABLE = "main.jdbc_new_metadata_benchmark_schema.benchmarking_results";
         break;
       case "THRIFT":
