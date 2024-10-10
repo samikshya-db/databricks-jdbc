@@ -52,7 +52,7 @@ public class MetadataBenchmarkingTests {
   }
 
   static Stream<String> modeProvider() {
-    return Stream.of("SEA", "THRIFT");
+    return Stream.of("SEA", "THRIFT", "THRIFT_ALL_PURPOSE_CLUSTER");
   }
 
   @ParameterizedTest
@@ -79,6 +79,9 @@ public class MetadataBenchmarkingTests {
                 getJDBCUrl(Map.of("usethriftclient", "1")), "token", getDatabricksToken());
         RESULTS_TABLE = "main.jdbc_metadata_benchmarking_thrift.benchmarking_results";
         break;
+      case "THRIFT_ALL_PURPOSE_CLUSTER":
+        connection = getBenchmarkingJDBCConnectionForThriftAllPurposeCluster();
+        RESULTS_TABLE = "main.jdbc_metadata_benchmarking_thrift.benchmarking_results_all_purpose";
       default:
         throw new IllegalArgumentException("Invalid testing mode");
     }
@@ -104,6 +107,12 @@ public class MetadataBenchmarkingTests {
       case "THRIFT":
         connection = getConnectionForSimbaDriver(getJDBCUrl(), "token", getDatabricksToken());
         break;
+      case "THRIFT_ALL_PURPOSE_CLUSTER":
+        connection =
+            getConnectionForSimbaDriver(
+                getBenchmarkingJDBCUrlForThriftAllPurposeCluster(),
+                "token",
+                getThriftDatabricksToken());
       default:
         throw new IllegalArgumentException("Invalid testing mode");
     }
@@ -248,7 +257,7 @@ public class MetadataBenchmarkingTests {
 
     try (PreparedStatement stmt = connection.prepareStatement(sql)) {
       // Set the TIMESTAMP for the current date and time
-      stmt.setTimestamp(1, java.sql.Timestamp.valueOf(LocalDateTime.now()));
+      stmt.setTimestamp(1, Timestamp.valueOf(LocalDateTime.now()));
 
       // Loop to set the values for each section
       int parameterIndex = 2; // Start after the TIMESTAMP
@@ -282,7 +291,7 @@ public class MetadataBenchmarkingTests {
 
       Class<?> driverClass =
           Class.forName("com.databricks.client.jdbc.Driver", true, urlClassLoader);
-      simbaDriver = (java.sql.Driver) driverClass.getDeclaredConstructor().newInstance();
+      simbaDriver = (Driver) driverClass.getDeclaredConstructor().newInstance();
     } catch (Exception e) {
       e.printStackTrace();
     }

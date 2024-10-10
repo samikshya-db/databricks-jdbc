@@ -9,7 +9,7 @@ import com.databricks.client.jdbc.DataSource;
 import com.databricks.client.jdbc.Driver;
 import com.databricks.jdbc.api.IDatabricksConnectionContext;
 import com.databricks.jdbc.api.impl.DatabricksConnection;
-import com.databricks.jdbc.api.impl.DatabricksConnectionContext;
+import com.databricks.jdbc.api.impl.DatabricksConnectionContextFactory;
 import com.databricks.jdbc.api.impl.ImmutableSessionInfo;
 import com.databricks.jdbc.common.IDatabricksComputeResource;
 import com.databricks.jdbc.common.Warehouse;
@@ -42,7 +42,7 @@ public class DatabricksPooledConnectionTest {
 
   @BeforeAll
   public static void setUp() throws DatabricksSQLException {
-    connectionContext = DatabricksConnectionContext.parse(JDBC_URL, new Properties());
+    connectionContext = DatabricksConnectionContextFactory.create(JDBC_URL, new Properties());
   }
 
   @Test
@@ -55,6 +55,7 @@ public class DatabricksPooledConnectionTest {
 
     DatabricksConnection databricksConnection =
         new DatabricksConnection(connectionContext, databricksClient);
+    databricksConnection.open();
     Mockito.when(poolDataSource.getPooledConnection())
         .thenReturn(new DatabricksPooledConnection(databricksConnection));
 
@@ -98,6 +99,7 @@ public class DatabricksPooledConnectionTest {
 
     DatabricksConnection databricksConnection =
         new DatabricksConnection(connectionContext, databricksClient);
+    databricksConnection.open();
     Mockito.when(poolDataSource.getPooledConnection())
         .thenReturn(new DatabricksPooledConnection(databricksConnection));
 
@@ -126,6 +128,7 @@ public class DatabricksPooledConnectionTest {
 
     DatabricksConnection databricksConnection =
         new DatabricksConnection(connectionContext, databricksClient);
+    databricksConnection.open();
     Mockito.when(poolDataSource.getPooledConnection())
         .thenReturn(new DatabricksPooledConnection(databricksConnection));
 
@@ -158,6 +161,7 @@ public class DatabricksPooledConnectionTest {
         .thenReturn(session);
     DatabricksConnection databricksConnection =
         new DatabricksConnection(connectionContext, databricksClient);
+    databricksConnection.open();
     Mockito.when(poolDataSource.getPooledConnection())
         .thenReturn(new DatabricksPooledConnection(databricksConnection));
 
@@ -183,6 +187,7 @@ public class DatabricksPooledConnectionTest {
         .thenReturn(session);
     DatabricksConnection databricksConnection =
         new DatabricksConnection(connectionContext, databricksClient);
+    databricksConnection.open();
     Mockito.when(poolDataSource.getPooledConnection())
         .thenReturn(new DatabricksPooledConnection(databricksConnection));
 
@@ -203,7 +208,7 @@ public class DatabricksPooledConnectionTest {
     assertTrue(statement.isClosed());
   }
 
-  class TestListener implements ConnectionEventListener {
+  static class TestListener implements ConnectionEventListener {
     List<ConnectionEvent> connectionClosedEvents = new ArrayList<>();
     List<ConnectionEvent> connectionErrorEvents = new ArrayList<>();
 
@@ -219,10 +224,6 @@ public class DatabricksPooledConnectionTest {
 
     public List<ConnectionEvent> getConnectionClosedEvents() {
       return connectionClosedEvents;
-    }
-
-    public List<ConnectionEvent> getConnectionErrorEvents() {
-      return connectionErrorEvents;
     }
   }
 }

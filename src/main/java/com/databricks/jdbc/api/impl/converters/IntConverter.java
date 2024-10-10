@@ -1,8 +1,8 @@
 package com.databricks.jdbc.api.impl.converters;
 
-import com.databricks.jdbc.common.LogLevel;
-import com.databricks.jdbc.common.util.LoggingUtil;
 import com.databricks.jdbc.exception.DatabricksSQLException;
+import com.databricks.jdbc.log.JdbcLogger;
+import com.databricks.jdbc.log.JdbcLoggerFactory;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
@@ -11,99 +11,99 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 
-public class IntConverter extends AbstractObjectConverter {
-  private int object;
+public class IntConverter implements ObjectConverter {
 
-  public IntConverter(Object object) throws DatabricksSQLException {
-    super(object);
+  private static final JdbcLogger LOGGER = JdbcLoggerFactory.getLogger(IntConverter.class);
+
+  @Override
+  public int toInt(Object object) throws DatabricksSQLException {
     if (object instanceof String) {
-      this.object = Integer.parseInt((String) object);
+      return Integer.parseInt((String) object);
+    } else if (object instanceof Number) {
+      return ((Number) object).intValue();
     } else {
-      this.object = (int) object;
+      throw new DatabricksSQLException(
+          "Unsupported type for IntObjectConverter: " + object.getClass());
     }
   }
 
   @Override
-  public BigInteger convertToBigInteger() throws DatabricksSQLException {
-    return BigInteger.valueOf(this.object);
-  }
-
-  @Override
-  public int convertToInt() throws DatabricksSQLException {
-    return this.object;
-  }
-
-  @Override
-  public boolean convertToBoolean() throws DatabricksSQLException {
-    return (this.object == 0 ? false : true);
-  }
-
-  @Override
-  public byte convertToByte() throws DatabricksSQLException {
-    if (this.object >= Byte.MIN_VALUE && this.object <= Byte.MAX_VALUE) {
-      return (byte) this.object;
+  public byte toByte(Object object) throws DatabricksSQLException {
+    int value = toInt(object);
+    if (value >= Byte.MIN_VALUE && value <= Byte.MAX_VALUE) {
+      return (byte) value;
     }
-    throw new DatabricksSQLException("Invalid conversion");
+    throw new DatabricksSQLException("Invalid conversion: Int value out of byte range");
   }
 
   @Override
-  public short convertToShort() throws DatabricksSQLException {
-    if (this.object >= Short.MIN_VALUE && this.object <= Short.MAX_VALUE) {
-      return (short) this.object;
+  public short toShort(Object object) throws DatabricksSQLException {
+    int value = toInt(object);
+    if (value >= Short.MIN_VALUE && value <= Short.MAX_VALUE) {
+      return (short) value;
     }
-    throw new DatabricksSQLException("Invalid conversion");
+    throw new DatabricksSQLException("Invalid conversion: Int value out of short range");
   }
 
   @Override
-  public long convertToLong() throws DatabricksSQLException {
-    return (long) this.object;
+  public long toLong(Object object) throws DatabricksSQLException {
+    return toInt(object);
   }
 
   @Override
-  public float convertToFloat() throws DatabricksSQLException {
-    return (float) this.object;
+  public float toFloat(Object object) throws DatabricksSQLException {
+    return toInt(object);
   }
 
   @Override
-  public double convertToDouble() throws DatabricksSQLException {
-    return (double) this.object;
+  public double toDouble(Object object) throws DatabricksSQLException {
+    return toInt(object);
   }
 
   @Override
-  public BigDecimal convertToBigDecimal() throws DatabricksSQLException {
-    return BigDecimal.valueOf((long) this.object);
+  public BigDecimal toBigDecimal(Object object) throws DatabricksSQLException {
+    return BigDecimal.valueOf(toInt(object));
   }
 
   @Override
-  public byte[] convertToByteArray() throws DatabricksSQLException {
-    return ByteBuffer.allocate(4).putInt(this.object).array();
+  public BigInteger toBigInteger(Object object) throws DatabricksSQLException {
+    return BigInteger.valueOf(toInt(object));
   }
 
   @Override
-  public String convertToString() throws DatabricksSQLException {
-    return String.valueOf(this.object);
+  public boolean toBoolean(Object object) throws DatabricksSQLException {
+    return toInt(object) != 0;
   }
 
   @Override
-  public Date convertToDate() throws DatabricksSQLException {
-    LocalDate localDate = LocalDate.ofEpochDay(this.object);
-    return Date.valueOf(localDate);
+  public byte[] toByteArray(Object object) throws DatabricksSQLException {
+    return ByteBuffer.allocate(4).putInt(toInt(object)).array();
   }
 
   @Override
-  public Timestamp convertToTimestamp() throws DatabricksSQLException {
-    return convertToTimestamp(super.DEFAULT_TIMESTAMP_SCALE);
+  public String toString(Object object) throws DatabricksSQLException {
+    return String.valueOf(toInt(object));
   }
 
   @Override
-  public Timestamp convertToTimestamp(int scale) throws DatabricksSQLException {
+  public Timestamp toTimestamp(Object object) throws DatabricksSQLException {
+    return toTimestamp(object, DEFAULT_TIMESTAMP_SCALE);
+  }
+
+  @Override
+  public Timestamp toTimestamp(Object object, int scale) throws DatabricksSQLException {
     if (scale > 9) {
       throw new DatabricksSQLException("Unsupported scale");
     }
-    long nanoseconds = (long) this.object * super.POWERS_OF_TEN[9 - scale];
-    Time time = new Time(nanoseconds / super.POWERS_OF_TEN[6]);
-    LoggingUtil.log(
-        LogLevel.INFO, "check timestamp " + time.toString() + " " + time.toLocalTime().toString());
+    long nanoseconds = (long) toInt(object) * POWERS_OF_TEN[9 - scale];
+    Time time = new Time(nanoseconds / POWERS_OF_TEN[6]);
+    LOGGER.info("IntConverter#toTimestamp: " + time + " " + time.toLocalTime().toString());
     return new Timestamp(time.getTime());
+  }
+
+  @Override
+  public Date toDate(Object object) throws DatabricksSQLException {
+    LocalDate localDate = LocalDate.ofEpochDay(toInt(object));
+    return Date.valueOf(localDate);
   }
 }

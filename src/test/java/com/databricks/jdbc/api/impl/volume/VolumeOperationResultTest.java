@@ -5,11 +5,11 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.when;
 
-import com.databricks.jdbc.api.IDatabricksResultSet;
-import com.databricks.jdbc.api.IDatabricksStatement;
+import com.databricks.jdbc.api.callback.IDatabricksResultSetHandle;
+import com.databricks.jdbc.api.callback.IDatabricksStatementHandle;
 import com.databricks.jdbc.api.impl.DatabricksSession;
+import com.databricks.jdbc.api.impl.EmptyResultSet;
 import com.databricks.jdbc.api.impl.IExecutionResult;
-import com.databricks.jdbc.api.impl.fake.EmptyResultSet;
 import com.databricks.jdbc.dbclient.IDatabricksHttpClient;
 import com.databricks.jdbc.exception.DatabricksHttpException;
 import com.databricks.jdbc.exception.DatabricksSQLException;
@@ -20,7 +20,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.nio.file.Files;
 import java.util.Map;
-import org.apache.http.HttpEntity;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpDelete;
@@ -42,16 +41,13 @@ public class VolumeOperationResultTest {
   private static final String PRESIGNED_URL = "http://presignedUrl.site";
   private static final String ALLOWED_PATHS = "getVolFile,putVolFile";
   private static final String HEADERS = "{\"header1\":\"value1\"}";
-
   @Mock IDatabricksHttpClient mockHttpClient;
   @Mock CloseableHttpResponse httpResponse;
-  @Mock HttpEntity httpEntity;
   @Mock StatusLine mockedStatusLine;
   @Mock DatabricksSession session;
   @Mock IExecutionResult resultHandler;
-  @Mock IDatabricksStatement statement;
-  @Mock IDatabricksResultSet resultSet;
-
+  @Mock IDatabricksStatementHandle statement;
+  @Mock IDatabricksResultSetHandle resultSet;
   private static final ResultManifest RESULT_MANIFEST =
       new ResultManifest()
           .setIsVolumeOperation(true)
@@ -109,7 +105,7 @@ public class VolumeOperationResultTest {
     when(mockedStatusLine.getStatusCode()).thenReturn(200);
     when(statement.isAllowedInputStreamForVolumeOperation()).thenReturn(true);
 
-    IDatabricksResultSet fakeResultSet = new EmptyResultSet();
+    IDatabricksResultSetHandle fakeResultSet = new EmptyResultSet();
     VolumeOperationResult volumeOperationResult =
         new VolumeOperationResult(
             STATEMENT_ID,
@@ -143,7 +139,7 @@ public class VolumeOperationResultTest {
     when(statement.isAllowedInputStreamForVolumeOperation())
         .thenThrow(new DatabricksSQLException("statement closed"));
 
-    IDatabricksResultSet fakeResultSet = new EmptyResultSet();
+    IDatabricksResultSetHandle fakeResultSet = new EmptyResultSet();
     VolumeOperationResult volumeOperationResult =
         new VolumeOperationResult(
             STATEMENT_ID,
@@ -686,7 +682,7 @@ public class VolumeOperationResultTest {
     } catch (DatabricksSQLException e) {
       assertEquals("Volume operation failed: Failed to delete volume", e.getMessage());
     }
-    assertDoesNotThrow(() -> volumeOperationResult.close());
+    assertDoesNotThrow(volumeOperationResult::close);
   }
 
   @Test

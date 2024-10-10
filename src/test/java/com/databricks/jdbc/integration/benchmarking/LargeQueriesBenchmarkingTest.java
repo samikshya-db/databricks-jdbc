@@ -47,7 +47,7 @@ public class LargeQueriesBenchmarkingTest {
   }
 
   static Stream<String> modeProvider() {
-    return Stream.of("SEA", "THRIFT");
+    return Stream.of("SEA", "THRIFT", "THRIFT_ALL_PURPOSE_CLUSTER");
   }
 
   @ParameterizedTest
@@ -67,9 +67,12 @@ public class LargeQueriesBenchmarkingTest {
         break;
       case "THRIFT":
         connection = getBenchmarkingJDBCConnectionForThrift();
-        DriverManager.getConnection(
-            getBenchmarkingJDBCUrlForThrift(), "token", getDatabricksBenchmarkingToken());
         RESULTS_TABLE = "main.jdbc_thrift_large_queries_benchmarking_schema.benchmarking_results";
+        break;
+      case "THRIFT_ALL_PURPOSE_CLUSTER":
+        connection = getBenchmarkingJDBCConnectionForThriftAllPurposeCluster();
+        RESULTS_TABLE =
+            "main.jdbc_thrift_large_queries_benchmarking_schema.benchmarking_results_all_purpose";
         break;
       default:
         throw new IllegalArgumentException("Invalid testing mode");
@@ -118,6 +121,13 @@ public class LargeQueriesBenchmarkingTest {
         connection =
             getConnectionForSimbaDriver(
                 getBenchmarkingJDBCUrlForThrift(), "token", getDatabricksBenchmarkingToken());
+        break;
+      case "THRIFT_ALL_PURPOSE_CLUSTER":
+        connection =
+            getConnectionForSimbaDriver(
+                getBenchmarkingJDBCUrlForThriftAllPurposeCluster(),
+                "token",
+                getThriftDatabricksToken());
         break;
       default:
         throw new IllegalArgumentException("Invalid testing mode");
@@ -170,7 +180,7 @@ public class LargeQueriesBenchmarkingTest {
             + "(DateTime, OSS_AVG, DATABRICKS_AVG, OSS_TOTAL, DATABRICKS_TOTAL) VALUES (?, ?, ?, ?, ?)";
 
     try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-      stmt.setTimestamp(1, java.sql.Timestamp.valueOf(LocalDateTime.now()));
+      stmt.setTimestamp(1, Timestamp.valueOf(LocalDateTime.now()));
       stmt.setDouble(2, ((totalTimeForOSSDriver * 1.0) / (ATTEMPTS - 2)));
       stmt.setDouble(3, ((totalTimeForDatabricksDriver * 1.0) / (ATTEMPTS - 2)));
       stmt.setLong(4, totalTimeForOSSDriver);
@@ -191,7 +201,7 @@ public class LargeQueriesBenchmarkingTest {
 
       Class<?> driverClass =
           Class.forName("com.databricks.client.jdbc.Driver", true, urlClassLoader);
-      simbaDriver = (java.sql.Driver) driverClass.getDeclaredConstructor().newInstance();
+      simbaDriver = (Driver) driverClass.getDeclaredConstructor().newInstance();
     } catch (Exception e) {
       e.printStackTrace();
     }

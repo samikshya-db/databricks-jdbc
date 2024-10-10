@@ -6,6 +6,7 @@ import static com.databricks.jdbc.integration.fakeservice.FakeServiceConfigLoade
 import static com.databricks.jdbc.integration.fakeservice.FakeServiceExtension.TARGET_URI_PROP_SUFFIX;
 
 import com.databricks.jdbc.common.DatabricksJdbcConstants.FakeServiceType;
+import com.databricks.jdbc.common.DatabricksJdbcUrlParams;
 import com.databricks.jdbc.integration.fakeservice.FakeServiceConfigLoader;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -51,7 +52,9 @@ public class IntegrationTestUtil {
     // production services.
     String jdbcUrlTemplate = "jdbc:databricks://%s/default;ssl=0;AuthMech=3;httpPath=%s";
     return String.format(
-        jdbcUrlTemplate, getFakeServiceHost(), FakeServiceConfigLoader.getProperty(HTTP_PATH));
+        jdbcUrlTemplate,
+        getFakeServiceHost(),
+        FakeServiceConfigLoader.getProperty(DatabricksJdbcUrlParams.HTTP_PATH.getParamName()));
   }
 
   public static String getDatabricksHost() {
@@ -77,6 +80,10 @@ public class IntegrationTestUtil {
     return System.getenv("DATABRICKS_BENCHMARKING_HOST");
   }
 
+  public static String getAllPurposeDatabricksHost() {
+    return System.getenv("THRIFT_DATABRICKS_HOST");
+  }
+
   public static String getDatabricksToken() {
     return System.getenv("DATABRICKS_TOKEN");
   }
@@ -91,6 +98,10 @@ public class IntegrationTestUtil {
 
   public static String getDatabricksBenchmarkingToken() {
     return System.getenv("DATABRICKS_BENCHMARKING_TOKEN");
+  }
+
+  public static String getThriftDatabricksToken() {
+    return System.getenv("THRIFT_DATABRICKS_TOKEN");
   }
 
   public static String getDatabricksHTTPPath() {
@@ -110,7 +121,11 @@ public class IntegrationTestUtil {
   }
 
   public static String getDatabricksBenchmarkingHTTPPathForThrift() {
-    return System.getenv("DATABRICKS_BENCHMARKING_HTTP_PATH_THRIFT");
+    return System.getenv("DATABRICKS_BENCHMARKING_HTTP_PATH_ALL_PURPOSE");
+  }
+
+  public static String getAllPurposeDatabricksHTTPPath() {
+    return System.getenv("THRIFT_DATABRICKS_HTTP_PATH");
   }
 
   public static String getDatabricksCatalog() {
@@ -131,12 +146,16 @@ public class IntegrationTestUtil {
 
   public static Connection getValidJDBCConnection() throws SQLException {
     Properties connectionProperties = new Properties();
-    connectionProperties.put(USER, getDatabricksUser());
-    connectionProperties.put(PASSWORD, getDatabricksToken());
+    connectionProperties.put(DatabricksJdbcUrlParams.USER.getParamName(), getDatabricksUser());
+    connectionProperties.put(DatabricksJdbcUrlParams.PASSWORD.getParamName(), getDatabricksToken());
 
     if (isFakeServiceTest) {
-      connectionProperties.put(CATALOG, FakeServiceConfigLoader.getProperty(CATALOG));
-      connectionProperties.put(CONN_SCHEMA, FakeServiceConfigLoader.getProperty(CONN_SCHEMA));
+      connectionProperties.put(
+          DatabricksJdbcUrlParams.CATALOG.getParamName(),
+          FakeServiceConfigLoader.getProperty(DatabricksJdbcUrlParams.CATALOG.getParamName()));
+      connectionProperties.put(
+          DatabricksJdbcUrlParams.CONN_SCHEMA.getParamName(),
+          FakeServiceConfigLoader.getProperty(DatabricksJdbcUrlParams.CONN_SCHEMA.getParamName()));
 
       return DriverManager.getConnection(getFakeServiceJDBCUrl(), connectionProperties);
     }
@@ -184,6 +203,14 @@ public class IntegrationTestUtil {
   public static Connection getBenchmarkingJDBCConnectionForThrift() throws SQLException {
     return DriverManager.getConnection(
         getBenchmarkingJDBCUrlForThrift(), getDatabricksUser(), getDatabricksBenchmarkingToken());
+  }
+
+  public static Connection getBenchmarkingJDBCConnectionForThriftAllPurposeCluster()
+      throws SQLException {
+    return DriverManager.getConnection(
+        getBenchmarkingJDBCUrlForThriftAllPurposeCluster(),
+        getDatabricksUser(),
+        getThriftDatabricksToken());
   }
 
   public static void resetJDBCConnection() {
@@ -247,6 +274,14 @@ public class IntegrationTestUtil {
     String host = getDatabricksBenchmarkingHost();
     String httpPath = getDatabricksBenchmarkingHTTPPathForThrift();
 
+    return String.format(template, host, httpPath);
+  }
+
+  public static String getBenchmarkingJDBCUrlForThriftAllPurposeCluster() {
+    String template =
+        "jdbc:databricks://%s:443/default;transportMode=http;ssl=1;httpPath=%s;AuthMech=3;UID=token";
+    String host = getAllPurposeDatabricksHost();
+    String httpPath = getAllPurposeDatabricksHTTPPath();
     return String.format(template, host, httpPath);
   }
 

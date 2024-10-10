@@ -65,12 +65,12 @@ public class InlineJsonResult implements IExecutionResult {
   }
 
   @Override
-  public synchronized long getCurrentRow() {
+  public long getCurrentRow() {
     return currentRow;
   }
 
   @Override
-  public synchronized boolean next() {
+  public boolean next() {
     if (hasNext()) {
       currentRow++;
       return true;
@@ -79,8 +79,8 @@ public class InlineJsonResult implements IExecutionResult {
   }
 
   @Override
-  public synchronized boolean hasNext() {
-    return !this.isClosed() && currentRow < data.size() - 1;
+  public boolean hasNext() {
+    return !isClosed() && currentRow < data.size() - 1;
   }
 
   @Override
