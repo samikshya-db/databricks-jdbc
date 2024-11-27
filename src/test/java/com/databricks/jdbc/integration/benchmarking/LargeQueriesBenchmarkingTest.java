@@ -60,6 +60,15 @@ public class LargeQueriesBenchmarkingTest {
     insertBenchmarkingDataIntoBenchfood();
   }
 
+  private void warmupCompute() throws SQLException {
+    try (Statement statement = connection.createStatement()) {
+      ResultSet rs = statement.executeQuery("SELECT 1");
+    } catch (SQLException e) {
+      e.printStackTrace();
+      throw e;
+    }
+  }
+
   private void runTestsForMode(String mode) throws SQLException {
     switch (mode) {
       case "SEA":
@@ -78,6 +87,9 @@ public class LargeQueriesBenchmarkingTest {
       default:
         throw new IllegalArgumentException("Invalid testing mode");
     }
+
+    // Warmup compute to ensure benchmarking results are not skewed towards the first driver
+    warmupCompute();
 
     runTestsForDriver(1); // Test for OSS driver
     switchDriver(mode);
