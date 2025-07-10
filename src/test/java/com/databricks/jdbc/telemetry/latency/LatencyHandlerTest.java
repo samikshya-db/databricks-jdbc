@@ -14,15 +14,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-public class ChunkLatencyHandlerTest {
+public class LatencyHandlerTest {
 
   @Mock private StatementId mockStatementId;
 
-  private ChunkLatencyHandler handler;
+  private LatencyHandler handler;
 
   @BeforeEach
   void setUp() {
-    handler = ChunkLatencyHandler.getInstance();
+    handler = LatencyHandler.getInstance();
     // Clear any existing state
     handler.getAllPendingChunkDetails(); // This clears the internal map
   }
@@ -35,8 +35,8 @@ public class ChunkLatencyHandlerTest {
 
   @Test
   void testGetInstance_ReturnsSameInstance() {
-    ChunkLatencyHandler instance1 = ChunkLatencyHandler.getInstance();
-    ChunkLatencyHandler instance2 = ChunkLatencyHandler.getInstance();
+    LatencyHandler instance1 = LatencyHandler.getInstance();
+    LatencyHandler instance2 = LatencyHandler.getInstance();
     assertSame(instance1, instance2);
   }
 

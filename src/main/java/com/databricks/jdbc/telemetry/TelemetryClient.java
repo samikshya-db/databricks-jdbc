@@ -3,7 +3,7 @@ package com.databricks.jdbc.telemetry;
 import com.databricks.jdbc.api.internal.IDatabricksConnectionContext;
 import com.databricks.jdbc.model.telemetry.TelemetryFrontendLog;
 import com.databricks.jdbc.model.telemetry.latency.ChunkDetails;
-import com.databricks.jdbc.telemetry.latency.ChunkLatencyHandler;
+import com.databricks.jdbc.telemetry.latency.LatencyHandler;
 import com.databricks.sdk.core.DatabricksConfig;
 import java.util.LinkedList;
 import java.util.List;
@@ -87,7 +87,7 @@ public class TelemetryClient implements ITelemetryClient {
   @Override
   public void close() {
     // Export any pending chunk latency telemetry before flushing
-    ChunkLatencyHandler.getInstance()
+    LatencyHandler.getInstance()
         .getAllPendingChunkDetails()
         .forEach(
             (statementId, chunkDetails) -> {
@@ -102,8 +102,7 @@ public class TelemetryClient implements ITelemetryClient {
 
   @Override
   public void closeStatement(String statementId) {
-    ChunkDetails chunkDetails =
-        ChunkLatencyHandler.getInstance().getChunkDetailsAndCleanup(statementId);
+    ChunkDetails chunkDetails = LatencyHandler.getInstance().getChunkDetailsAndCleanup(statementId);
     if (chunkDetails != null) {
       TelemetryHelper.exportChunkLatencyTelemetry(chunkDetails, statementId);
     }

@@ -4,6 +4,7 @@ import com.databricks.jdbc.dbclient.impl.common.StatementId;
 import com.databricks.jdbc.log.JdbcLogger;
 import com.databricks.jdbc.log.JdbcLoggerFactory;
 import com.databricks.jdbc.model.telemetry.latency.ChunkDetails;
+import com.databricks.jdbc.model.telemetry.latency.StatementLatencyDetails;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -12,22 +13,22 @@ import java.util.concurrent.ConcurrentHashMap;
  * Handler for tracking chunk-related latency metrics for Databricks JDBC driver. This class manages
  * per-statement chunk details and provides logic for data collection.
  */
-public class ChunkLatencyHandler {
+public class LatencyHandler {
 
-  private static final JdbcLogger LOGGER = JdbcLoggerFactory.getLogger(ChunkLatencyHandler.class);
+  private static final JdbcLogger LOGGER = JdbcLoggerFactory.getLogger(LatencyHandler.class);
 
   // Singleton instance for global access
-  private static final ChunkLatencyHandler INSTANCE = new ChunkLatencyHandler();
+  private static final LatencyHandler INSTANCE = new LatencyHandler();
 
-  // Per-statement latency tracking using ChunkDetails
-  private final ConcurrentHashMap<String, ChunkDetails> statementTrackers =
+  // Per-statement latency tracking using StatementLatencyDetails
+  private final ConcurrentHashMap<String, StatementLatencyDetails> statementTrackers =
       new ConcurrentHashMap<>();
 
-  private ChunkLatencyHandler() {
+  private LatencyHandler() {
     // Private constructor for singleton
   }
 
-  public static ChunkLatencyHandler getInstance() {
+  public static LatencyHandler getInstance() {
     return INSTANCE;
   }
 
@@ -42,7 +43,8 @@ public class ChunkLatencyHandler {
       LOGGER.trace("Statement ID is null, skipping initialization");
       return;
     }
-    statementTrackers.put(statementId.toString(), new ChunkDetails(totalChunks));
+    statementTrackers.put(
+        statementId.toString(), new StatementLatencyDetails(new ChunkDetails(totalChunks)));
     LOGGER.trace(
         "Initialized chunk tracking for statement {} with {} total chunks",
         statementId.toString(),
@@ -62,8 +64,10 @@ public class ChunkLatencyHandler {
       return;
     }
 
-    ChunkDetails chunkDetails =
-        statementTrackers.computeIfAbsent(statementId, k -> new ChunkDetails(0));
+    StatementLatencyDetails telemetry =
+        statementTrackers.computeIfAbsent(
+            statementId, k -> new StatementLatencyDetails(new ChunkDetails(0)));
+    ChunkDetails chunkDetails = telemetry.getChunkDetails();
 
     // Record initial chunk latency (first chunk downloaded)
     if (chunkIndex == 0) {
@@ -98,8 +102,9 @@ public class ChunkLatencyHandler {
       return;
     }
 
-    ChunkDetails chunkDetails = statementTrackers.get(statementId);
-    if (chunkDetails != null) {
+    StatementLatencyDetails telemetry = statementTrackers.get(statementId);
+    if (telemetry != null) {
+      ChunkDetails chunkDetails = telemetry.getChunkDetails();
       Long currentIterated = chunkDetails.getTotalChunksIterated();
       if (currentIterated == null) {
         currentIterated = 0L;
@@ -120,7 +125,11 @@ public class ChunkLatencyHandler {
       return null;
     }
 
-    return statementTrackers.get(statementId);
+    StatementLatencyDetails telemetry = statementTrackers.get(statementId);
+    if (telemetry == null) {
+      return null;
+    }
+    return telemetry.getChunkDetails();
   }
 
   /**
@@ -134,12 +143,12 @@ public class ChunkLatencyHandler {
       return null;
     }
 
-    ChunkDetails chunkDetails = statementTrackers.remove(statementId);
-    if (chunkDetails == null) {
+    StatementLatencyDetails telemetry = statementTrackers.remove(statementId);
+    if (telemetry == null) {
       LOGGER.trace("No chunk latency telemetry found for statement {}", statementId);
       return null;
     }
-    return chunkDetails;
+    return telemetry.getChunkDetails();
   }
 
   /**
@@ -172,7 +181,10 @@ public class ChunkLatencyHandler {
     LOGGER.trace(
         "Retrieved {} pending chunk details for telemetry export", statementTrackers.size());
 
-    Map<String, ChunkDetails> pendingDetails = new ConcurrentHashMap<>(statementTrackers);
+    Map<String, ChunkDetails> pendingDetails = new ConcurrentHashMap<>();
+    for (Map.Entry<String, StatementLatencyDetails> entry : statementTrackers.entrySet()) {
+      pendingDetails.put(entry.getKey(), entry.getValue().getChunkDetails());
+    }
     statementTrackers.clear();
     return pendingDetails;
   }
