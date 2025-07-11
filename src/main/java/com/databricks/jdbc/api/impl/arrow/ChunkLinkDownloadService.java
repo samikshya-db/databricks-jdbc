@@ -10,7 +10,6 @@ import com.databricks.jdbc.exception.DatabricksValidationException;
 import com.databricks.jdbc.log.JdbcLogger;
 import com.databricks.jdbc.log.JdbcLoggerFactory;
 import com.databricks.jdbc.model.core.ExternalLink;
-import com.databricks.jdbc.telemetry.latency.LatencyHandler;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Map;
@@ -104,7 +103,6 @@ public class ChunkLinkDownloadService {
     this.isDownloadInProgress = new AtomicBoolean(false);
     this.isDownloadChainStarted = new AtomicBoolean(false);
     this.isShutdown = false;
-    LatencyHandler.getInstance().initializeStatement(statementId, totalChunks);
 
     this.chunkIndexToLinkFuture = new ConcurrentHashMap<>();
     for (long i = 0; i < totalChunks; i++) {

@@ -11,6 +11,14 @@ public class ResultLatency {
   @JsonProperty("result_set_consumption_latency_millis")
   private Long resultSetConsumptionLatencyMillis;
 
+  public Long getResultSetReadyLatencyMillis() {
+    return resultSetReadyLatencyMillis;
+  }
+
+  public Long getResultSetConsumptionLatencyMillis() {
+    return resultSetConsumptionLatencyMillis;
+  }
+
   public ResultLatency setResultSetReadyLatencyMillis(Long resultSetReadyLatencyMillis) {
     this.resultSetReadyLatencyMillis = resultSetReadyLatencyMillis;
     return this;

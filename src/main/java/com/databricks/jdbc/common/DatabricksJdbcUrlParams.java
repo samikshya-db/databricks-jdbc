@@ -131,7 +131,8 @@ public enum DatabricksJdbcUrlParams {
   ENABLE_TOKEN_CACHE("EnableTokenCache", "Enable caching OAuth tokens", "1"),
   APPLICATION_NAME("ApplicationName", "Name of application using the driver", ""),
   FORCE_ENABLE_TELEMETRY("ForceEnableTelemetry", "Force enable telemetry", "0"),
-  TELEMETRY_FLUSH_INTERVAL("TelemetryFlushInterval", "Flush interval in milliseconds", "5000"),
+  TELEMETRY_FLUSH_INTERVAL(
+      "TelemetryFlushInterval", "Flush interval in milliseconds", "300000"), // 5 MINUTES
   ;
 
   private final String paramName;
