@@ -97,9 +97,11 @@ public class StatementTelemetryDetails {
     this.resultLatency.markResultSetConsumption(hasNext);
   }
 
-  public void recordOperationLatency(long latencyMillis, OperationType operationType) {
+  public StatementTelemetryDetails recordOperationLatency(
+      long latencyMillis, OperationType operationType) {
     this.operationDetail.setOperationType(operationType);
     this.operationLatencyMillis = latencyMillis;
+    return this;
   }
 
   public void recordGetOperationStatusLatency(long latencyMillis) {

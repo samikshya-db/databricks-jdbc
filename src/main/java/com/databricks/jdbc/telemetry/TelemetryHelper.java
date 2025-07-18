@@ -70,26 +70,6 @@ public class TelemetryHelper {
             .isFeatureEnabled(TELEMETRY_FEATURE_FLAG_NAME);
   }
 
-  public static void exportInitialTelemetryLog(IDatabricksConnectionContext connectionContext) {
-    if (getDriverConnectionParameter(connectionContext) == null) {
-      return;
-    }
-    TelemetryFrontendLog telemetryFrontendLog =
-        new TelemetryFrontendLog()
-            .setFrontendLogEventId(getEventUUID())
-            .setContext(getLogContext())
-            .setEntry(
-                new FrontendLogEntry()
-                    .setSqlDriverLog(
-                        new TelemetryEvent()
-                            .setDriverConnectionParameters(
-                                getDriverConnectionParameter(connectionContext))
-                            .setDriverSystemConfiguration(getDriverSystemConfiguration())));
-    TelemetryClientFactory.getInstance()
-        .getTelemetryClient(connectionContext)
-        .exportEvent(telemetryFrontendLog);
-  }
-
   public static void exportTelemetryLog(StatementTelemetryDetails telemetryDetails) {
     exportTelemetryEvent(
         DatabricksThreadContextHolder.getConnectionContext(), telemetryDetails, null, null);
@@ -292,6 +272,8 @@ public class TelemetryHelper {
         return OperationType.CLOSE_STATEMENT;
       case "cancelStatement":
         return OperationType.CANCEL_STATEMENT;
+      case "deleteSession":
+        return OperationType.DELETE_SESSION;
       case "listCrossReferences":
         return OperationType.LIST_CROSS_REFERENCES;
       case "listExportedKeys":

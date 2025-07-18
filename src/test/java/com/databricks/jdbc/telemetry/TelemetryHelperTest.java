@@ -11,13 +11,9 @@ import static org.mockito.Mockito.*;
 import com.databricks.jdbc.api.internal.IDatabricksConnectionContext;
 import com.databricks.jdbc.common.DatabricksClientType;
 import com.databricks.jdbc.common.util.DatabricksThreadContextHolder;
-import com.databricks.jdbc.exception.DatabricksParsingException;
 import com.databricks.jdbc.model.telemetry.StatementTelemetryDetails;
-import com.databricks.jdbc.model.telemetry.enums.DatabricksDriverErrorCode;
 import com.databricks.sdk.core.DatabricksConfig;
-import com.databricks.sdk.core.ProxyConfig;
 import java.util.Collections;
-import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,39 +41,6 @@ public class TelemetryHelperTest {
     when(connectionContext.getConnectionUuid()).thenReturn("test-uuid");
     when(connectionContext.getTelemetryBatchSize()).thenReturn(10);
     when(connectionContext.getTelemetryFlushIntervalInMilliseconds()).thenReturn(1000);
-  }
-
-  @Test
-  void testInitialTelemetryLogDoesNotThrowError() {
-    when(connectionContext.getConnectionUuid()).thenReturn(UUID.randomUUID().toString());
-    when(connectionContext.getUseProxy()).thenReturn(true);
-    when(connectionContext.getProxyAuthType()).thenReturn(ProxyConfig.ProxyAuthType.BASIC);
-    when(connectionContext.getProxyPort()).thenReturn(443);
-    when(connectionContext.getProxyHost()).thenReturn(TEST_STRING);
-    when(connectionContext.getClientType()).thenReturn(DatabricksClientType.SEA);
-    when(connectionContext.getUseCloudFetchProxy()).thenReturn(true);
-    when(connectionContext.getCloudFetchProxyAuthType())
-        .thenReturn(ProxyConfig.ProxyAuthType.BASIC);
-    when(connectionContext.getCloudFetchProxyPort()).thenReturn(443);
-    when(connectionContext.getCloudFetchProxyHost()).thenReturn(TEST_STRING);
-    assertDoesNotThrow(() -> TelemetryHelper.exportInitialTelemetryLog(connectionContext));
-  }
-
-  @Test
-  void testInitialTelemetryLogWithNullContextDoesNotThrowError() {
-    assertDoesNotThrow(() -> TelemetryHelper.exportInitialTelemetryLog(null));
-  }
-
-  @Test
-  void testHostFetchThrowsErrorInTelemetryLog() throws DatabricksParsingException {
-    when(connectionContext.getHostUrl())
-        .thenThrow(
-            new DatabricksParsingException(TEST_STRING, DatabricksDriverErrorCode.INVALID_STATE));
-    when(connectionContext.getConnectionUuid()).thenReturn("test-uuid");
-    when(connectionContext.getClientType()).thenReturn(DatabricksClientType.SEA);
-    when(connectionContext.getTelemetryBatchSize()).thenReturn(10);
-    when(connectionContext.getTelemetryFlushIntervalInMilliseconds()).thenReturn(1000);
-    assertDoesNotThrow(() -> TelemetryHelper.exportInitialTelemetryLog(connectionContext));
   }
 
   @Test
@@ -136,11 +99,6 @@ public class TelemetryHelperTest {
   @Test
   void testIsTelemetryAllowedForConnectionWithForceEnabled() {
     assertTrue(TelemetryHelper.isTelemetryAllowedForConnection(connectionContext));
-  }
-
-  @Test
-  void testExportInitialTelemetryLogWithNullContext() {
-    assertDoesNotThrow(() -> TelemetryHelper.exportInitialTelemetryLog(null));
   }
 
   @ParameterizedTest

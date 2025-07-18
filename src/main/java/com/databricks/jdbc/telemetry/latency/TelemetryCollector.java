@@ -4,6 +4,7 @@ import com.databricks.jdbc.common.util.DatabricksThreadContextHolder;
 import com.databricks.jdbc.log.JdbcLogger;
 import com.databricks.jdbc.log.JdbcLoggerFactory;
 import com.databricks.jdbc.model.telemetry.StatementTelemetryDetails;
+import com.databricks.jdbc.model.telemetry.latency.OperationType;
 import com.databricks.jdbc.telemetry.TelemetryHelper;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,15 +50,19 @@ public class TelemetryCollector {
   }
 
   public void recordOperationLatency(long latencyMillis, String methodName) {
+    // It is possible that statement ID is not present in case of openSession. In which case, we
+    // send telemetry latency log without the statement ID
     String statementId = DatabricksThreadContextHolder.getStatementId();
-    if (statementId == null) {
-      LOGGER.trace("Statement ID is null, skipping latency recording");
+    OperationType operationType = TelemetryHelper.mapMethodToOperationType(methodName);
+    if (isTelemetryCollected(null) && isCloseOperation(operationType)) {
+      // This is terminal state, we will have to export all data corresponding to the statementID
+      statementTrackers.get(statementId).recordOperationLatency(latencyMillis, operationType);
+      exportTelemetryDetailsAndClear(statementId);
       return;
     }
-    statementTrackers
-        .computeIfAbsent(statementId, k -> new StatementTelemetryDetails(statementId))
-        .recordOperationLatency(
-            latencyMillis, TelemetryHelper.mapMethodToOperationType(methodName));
+    TelemetryHelper.exportTelemetryLog(
+        new StatementTelemetryDetails(statementId)
+            .recordOperationLatency(latencyMillis, operationType));
   }
 
   /**
@@ -135,5 +140,16 @@ public class TelemetryCollector {
     statementTrackers
         .computeIfAbsent(statementId, k -> new StatementTelemetryDetails(statementId))
         .recordChunkIteration(totalChunks);
+  }
+
+  @VisibleForTesting
+  boolean isCloseOperation(OperationType operationType) {
+    return (operationType == OperationType.CLOSE_STATEMENT
+        || operationType == OperationType.CANCEL_STATEMENT
+        || operationType == OperationType.DELETE_SESSION);
+  }
+
+  boolean isTelemetryCollected(String statementId) {
+    return statementId != null && statementTrackers.containsKey(statementId);
   }
 }
