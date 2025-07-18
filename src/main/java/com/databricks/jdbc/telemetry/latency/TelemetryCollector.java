@@ -54,7 +54,7 @@ public class TelemetryCollector {
     // send telemetry latency log without the statement ID
     String statementId = DatabricksThreadContextHolder.getStatementId();
     OperationType operationType = TelemetryHelper.mapMethodToOperationType(methodName);
-    if (isTelemetryCollected(null) && isCloseOperation(operationType)) {
+    if (isTelemetryCollected(statementId) && isCloseOperation(operationType)) {
       // This is terminal state, we will have to export all data corresponding to the statementID
       statementTrackers.get(statementId).recordOperationLatency(latencyMillis, operationType);
       exportTelemetryDetailsAndClear(statementId);
@@ -96,16 +96,6 @@ public class TelemetryCollector {
       return null;
     }
     return statementTrackers.get(statementId);
-  }
-
-  /**
-   * Exports the telemetry details for a statement and clears the tracker for the statement.
-   *
-   * @param statementId the statement ID
-   */
-  public void exportTelemetryDetailsAndClear(String statementId) {
-    StatementTelemetryDetails statementTelemetryDetails = statementTrackers.remove(statementId);
-    TelemetryHelper.exportTelemetryLog(statementTelemetryDetails);
   }
 
   /**
@@ -151,5 +141,15 @@ public class TelemetryCollector {
 
   boolean isTelemetryCollected(String statementId) {
     return statementId != null && statementTrackers.containsKey(statementId);
+  }
+
+  /**
+   * Exports the telemetry details for a statement and clears the tracker for the statement.
+   *
+   * @param statementId the statement ID
+   */
+  private void exportTelemetryDetailsAndClear(String statementId) {
+    StatementTelemetryDetails statementTelemetryDetails = statementTrackers.remove(statementId);
+    TelemetryHelper.exportTelemetryLog(statementTelemetryDetails);
   }
 }

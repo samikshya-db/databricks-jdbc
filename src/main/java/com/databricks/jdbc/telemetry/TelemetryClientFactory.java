@@ -68,9 +68,8 @@ public class TelemetryClientFactory {
   @VisibleForTesting
   public void reset() {
     // Close all existing clients
-    telemetryClients.values().forEach(client -> client.close());
-
-    noauthTelemetryClients.values().forEach(client -> client.close());
+    telemetryClients.values().forEach(TelemetryClient::close);
+    noauthTelemetryClients.values().forEach(TelemetryClient::close);
 
     // Clear the maps
     telemetryClients.clear();
