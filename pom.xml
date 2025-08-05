@@ -647,22 +647,24 @@
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-gpg-plugin</artifactId>
             <version>1.6</version>
-          
-                <configuration>
-                  <!-- Prevent gpg from using pinentry programs -->
-                  <gpgArguments>
-                    <arg>--pinentry-mode</arg>
-                    <arg>loopback</arg>
-                  </gpgArguments>
-                  <!-- Custom reduced pom file for fat jar -->
-                  <pomFile>${project.basedir}/uber-minimal-pom.xml</pomFile>
-                  <sources>${project.build.directory}/${project.build.finalName}-sources.jar</sources>
-                  <javadoc>${project.build.directory}/${project.build.finalName}-javadoc.jar</javadoc>
-                  <files>${project.build.directory}/${project.build.finalName}-thin.jar</files>
-                  <types>jar</types>
-                  <classifiers>thin</classifiers>
-                </configuration>
-                <executions>
+            <configuration>
+              <gpgArguments>
+                <arg>--batch</arg>
+                <arg>--pinentry-mode</arg>
+                <arg>loopback</arg>
+                <arg>--no-tty</arg>
+                <arg>--yes</arg>
+              </gpgArguments>
+              <passphrase>${env.GPG_PASSPHRASE}</passphrase>
+              <!-- Custom reduced pom file for fat jar -->
+              <pomFile>${project.basedir}/uber-minimal-pom.xml</pomFile>
+              <sources>${project.build.directory}/${project.build.finalName}-sources.jar</sources>
+              <javadoc>${project.build.directory}/${project.build.finalName}-javadoc.jar</javadoc>
+              <files>${project.build.directory}/${project.build.finalName}-thin.jar</files>
+              <types>jar</types>
+              <classifiers>thin</classifiers>
+            </configuration>
+            <executions>
               <execution>
                 <id>sign-artifacts</id>
                 <goals>
