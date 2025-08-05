@@ -39,6 +39,12 @@ jobs:
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
+      - name: Configure GPG
+        run: |
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+          gpg-connect-agent reloadagent /bye
+
       - name: Publish to the Maven Central Repository
         run: mvn -Prelease -X --batch-mode deploy -Dnvd.api.key=${{ secrets.NVD_API_KEY }}
         env:
