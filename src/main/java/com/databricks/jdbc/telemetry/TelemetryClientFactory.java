@@ -35,7 +35,7 @@ public class TelemetryClientFactory {
       @Override
       public Thread newThread(Runnable r) {
         Thread thread = new Thread(r, "Telemetry-Thread-" + threadNumber.getAndIncrement());
-        //TODO : https://databricks.atlassian.net/browse/PECO-2716
+        // TODO : https://databricks.atlassian.net/browse/PECO-2716
         thread.setDaemon(true);
         return thread;
       }
