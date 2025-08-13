@@ -65,7 +65,6 @@ class TelemetryPushTask implements Runnable {
                   .map(
                       event -> {
                         try {
-                          System.out.println(objectMapper.writeValueAsString(event));
                           return objectMapper.writeValueAsString(event);
                         } catch (JsonProcessingException e) {
                           LOGGER.trace(
