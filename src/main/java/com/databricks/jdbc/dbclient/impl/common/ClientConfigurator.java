@@ -204,8 +204,8 @@ public class ClientConfigurator {
     if (databricksConfig.isAzure()) {
       LOGGER.debug("Using Azure U2M Auth");
       databricksConfig.setCredentialsProvider(
-              new DatabricksTokenFederationProvider(
-                      connectionContext, new AzureExternalBrowserProvider(connectionContext)));
+          new DatabricksTokenFederationProvider(
+              connectionContext, new AzureExternalBrowserProvider(connectionContext)));
       return;
     }
     databricksConfig.setScopes(connectionContext.getOAuthScopesForU2M());
