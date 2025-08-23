@@ -201,10 +201,14 @@ public class ClientConfigurator {
 
     LOGGER.info("Using OAuth redirect URL: {}", redirectUrl);
 
-    if (!databricksConfig.isAzure()) {
-      databricksConfig.setScopes(connectionContext.getOAuthScopesForU2M());
+    if (databricksConfig.isAzure()) {
+      LOGGER.debug("Using Azure U2M Auth");
+      databricksConfig.setCredentialsProvider(
+              new DatabricksTokenFederationProvider(
+                      connectionContext, new AzureExternalBrowserProvider(connectionContext)));
+      return;
     }
-
+    databricksConfig.setScopes(connectionContext.getOAuthScopesForU2M());
     TokenCache tokenCache;
     if (connectionContext.isTokenCacheEnabled()) {
       if (connectionContext.getTokenCachePassPhrase() == null) {
