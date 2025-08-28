@@ -10,7 +10,9 @@ import com.databricks.jdbc.dbclient.impl.http.DatabricksHttpClientFactory;
 import com.databricks.sdk.core.DatabricksConfig;
 import com.databricks.sdk.core.HeaderFactory;
 import java.lang.reflect.Field;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
@@ -486,6 +488,61 @@ public class AzureExternalBrowserProviderTest {
       assertEquals("https://auth", invokePrivate(oauthConfig, "getAuthorizationEndpoint"));
       assertEquals("https://token", invokePrivate(oauthConfig, "getTokenEndpoint"));
       assertEquals("issuer", invokePrivate(oauthConfig, "getIssuer"));
+    }
+  }
+
+  @Test
+  void testGeneratePKCEChallengeAndBuildAuthorizationUrl_Params() throws Exception {
+    try (MockedStatic<DatabricksHttpClientFactory> factoryMocked =
+        mockStatic(DatabricksHttpClientFactory.class)) {
+      DatabricksHttpClientFactory mockFactory = mock(DatabricksHttpClientFactory.class);
+      factoryMocked.when(DatabricksHttpClientFactory::getInstance).thenReturn(mockFactory);
+      when(mockFactory.getClient(any())).thenReturn(mockHttpClient);
+
+      when(mockContext.getHost()).thenReturn("adb-foo.azuredatabricks.net");
+      when(mockContext.getClientId()).thenReturn("client-id");
+
+      AzureExternalBrowserProvider provider = new AzureExternalBrowserProvider(mockContext, 8023);
+      Object oauthConfig =
+          newInner(
+              "com.databricks.jdbc.auth.AzureExternalBrowserProvider$OAuthConfig",
+              "https://auth",
+              "https://token",
+              "issuer");
+      setPrivateField(provider, "oauthConfig", oauthConfig);
+
+      Object pkce = invokePrivate(provider, "generatePKCEChallenge");
+      String verifier = (String) invokePrivate(pkce, "getVerifier");
+      String challenge = (String) invokePrivate(pkce, "getChallenge");
+
+      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      String expectedChallenge =
+          Base64.getUrlEncoder()
+              .withoutPadding()
+              .encodeToString(digest.digest(verifier.getBytes(StandardCharsets.UTF_8)));
+      assertEquals(expectedChallenge, challenge);
+
+      String redirect = "http://localhost:12345";
+      String state = "stateXYZ";
+      String url = (String) invokePrivate(provider, "buildAuthorizationUrl", pkce, redirect, state);
+      assertTrue(url.startsWith("https://auth"));
+
+      URI uri = URI.create(url);
+      String[] pairs = uri.getQuery().split("&");
+      java.util.HashMap<String, String> params = new java.util.HashMap<>();
+      for (String p : pairs) {
+        String[] kv = p.split("=", 2);
+        params.put(
+            java.net.URLDecoder.decode(kv[0], StandardCharsets.UTF_8),
+            java.net.URLDecoder.decode(kv[1], StandardCharsets.UTF_8));
+      }
+      assertEquals("code", params.get("response_type"));
+      assertEquals("client-id", params.get("client_id"));
+      assertEquals("offline_access sql", params.get("scope"));
+      assertEquals(redirect, params.get("redirect_uri"));
+      assertEquals(state, params.get("state"));
+      assertEquals(challenge, params.get("code_challenge"));
+      assertEquals("S256", params.get("code_challenge_method"));
     }
   }
 
