@@ -205,7 +205,8 @@ public class ClientConfigurator {
       LOGGER.debug("Using Azure U2M Auth");
       databricksConfig.setCredentialsProvider(
           new DatabricksTokenFederationProvider(
-              connectionContext, new AzureExternalBrowserProvider(connectionContext)));
+              connectionContext,
+              new AzureExternalBrowserProvider(connectionContext, redirectPort)));
       return;
     }
     databricksConfig.setScopes(connectionContext.getOAuthScopesForU2M());
@@ -236,7 +237,7 @@ public class ClientConfigurator {
    * @return The first available port
    * @throws DatabricksException if no available port is found
    */
-  int findAvailablePort(List<Integer> initialPorts) {
+  public int findAvailablePort(List<Integer> initialPorts) {
     List<Integer> portsToTry;
 
     // If single port provided, generate sequence of ports to try

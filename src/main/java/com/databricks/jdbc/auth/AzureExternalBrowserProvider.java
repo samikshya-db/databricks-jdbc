@@ -30,7 +30,6 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -76,6 +75,7 @@ public class AzureExternalBrowserProvider implements CredentialsProvider {
   private final IDatabricksConnectionContext connectionContext;
   private final IDatabricksHttpClient httpClient;
   private final OAuthCallbackServer callbackServer;
+  private final int callbackPort;
 
   private String accessToken;
   private String refreshToken;
@@ -87,13 +87,15 @@ public class AzureExternalBrowserProvider implements CredentialsProvider {
    *
    * @param connectionContext The connection context containing OAuth configuration
    */
-  public AzureExternalBrowserProvider(IDatabricksConnectionContext connectionContext)
+  public AzureExternalBrowserProvider(
+      IDatabricksConnectionContext connectionContext, int availablePort)
       throws DatabricksParsingException {
     this.connectionContext = connectionContext;
     this.hostname = connectionContext.getHost();
     this.clientId = connectionContext.getClientId();
     this.httpClient = DatabricksHttpClientFactory.getInstance().getClient(connectionContext);
     this.callbackServer = new OAuthCallbackServer();
+    this.callbackPort = availablePort;
   }
 
   @Override
@@ -192,77 +194,55 @@ public class AzureExternalBrowserProvider implements CredentialsProvider {
 
   /** Performs the complete OAuth 2.0 authorization code flow with PKCE. */
   private void performOAuthFlow() throws Exception {
-    LOGGER.debug("Starting Azure OAuth flow for {}", hostname);
-
     // Fetch OAuth configuration
     oauthConfig = fetchOAuthConfig();
-    LOGGER.debug(
-        "OAuth config fetched - auth endpoint: {}", oauthConfig.getAuthorizationEndpoint());
-
     // Generate PKCE challenge
     PKCEChallenge pkce = generatePKCEChallenge();
-    LOGGER.debug("PKCE challenge generated");
-
     // Find available port for callback
-    int callbackPort = findAvailablePort();
     String redirectUri = "http://localhost:" + callbackPort;
-    LOGGER.debug("Using callback port: {} with redirect URI: {}", callbackPort, redirectUri);
-
     // Generate state parameter for security
     String state = generateRandomString(32);
-    LOGGER.debug("Generated state parameter for OAuth flow");
-
     // Build authorization URL
     String authUrl = buildAuthorizationUrl(pkce, redirectUri, state);
-    LOGGER.debug("Authorization URL built (length: {})", authUrl.length());
-
     // Start callback server
     LOGGER.debug("Starting OAuth callback server on port {}", callbackPort);
     callbackServer.start(callbackPort);
-
     try {
       // Give the server a moment to be fully ready
       Thread.sleep(200);
 
       // Open browser for authentication
-      LOGGER.debug("Opening browser for OAuth authentication");
       openBrowser(authUrl);
-
       // Wait for callback
-      LOGGER.debug("Waiting for OAuth callback (timeout: 300 seconds)");
       OAuthCallback callback = callbackServer.waitForCallback(300, TimeUnit.SECONDS);
-      LOGGER.debug("OAuth callback received");
 
       // Validate state parameter
       if (!state.equals(callback.getState())) {
-        LOGGER.error(
-            "OAuth state parameter mismatch. Expected: {}, Received: {}",
-            state,
-            callback.getState());
-        throw new DatabricksDriverException(
-            "OAuth state parameter mismatch", DatabricksDriverErrorCode.AUTH_ERROR);
+        String error =
+            String.format(
+                "OAuth state parameter mismatch. Expected: %s, Received: %s",
+                state, callback.getState());
+        LOGGER.error(error);
+        throw new DatabricksDriverException(error, DatabricksDriverErrorCode.AUTH_ERROR);
       }
-      LOGGER.debug("OAuth state parameter validated successfully");
-
       // Exchange authorization code for tokens
-      LOGGER.debug("Exchanging authorization code for tokens");
       exchangeCodeForTokens(callback.getCode(), pkce.getVerifier(), redirectUri);
-      LOGGER.debug("Token exchange completed successfully");
-
     } catch (Exception e) {
-      LOGGER.error(e, "OAuth flow failed");
+      String errorMessage = String.format("OAuth flow failed for Azure U2M. Error: %s", e);
+      LOGGER.error(e, errorMessage);
       throw e;
     } finally {
       LOGGER.debug("Stopping OAuth callback server");
       callbackServer.stop();
     }
-
-    LOGGER.debug("Successfully completed OAuth flow");
   }
 
   /** Fetches OAuth configuration from the well-known endpoint. */
-  private OAuthConfig fetchOAuthConfig() throws Exception {
-    String configUrl = "https://" + hostname + "/oidc/.well-known/oauth-authorization-server";
+  private OAuthConfig fetchOAuthConfig() {
+    String configUrl =
+        "https://"
+            + hostname
+            + "/oidc/.well-known/oauth-authorization-server"; // TODO: add discovery url here
     LOGGER.debug("Fetching OAuth configuration from: {}", configUrl);
 
     HttpGet request = new HttpGet(configUrl);
@@ -270,19 +250,12 @@ public class AzureExternalBrowserProvider implements CredentialsProvider {
 
     try (CloseableHttpResponse response = httpClient.execute(request)) {
       String responseBody = EntityUtils.toString(response.getEntity());
-      LOGGER.debug("OAuth configuration response: {}", responseBody);
 
       JsonNode config = OBJECT_MAPPER.readTree(responseBody);
 
       String authorizationEndpoint = config.get("authorization_endpoint").asText();
       String tokenEndpoint = config.get("token_endpoint").asText();
       String issuer = config.get("issuer").asText();
-
-      LOGGER.debug(
-          "OAuth configuration - Authorization endpoint: {}, Token endpoint: {}, Issuer: {}",
-          authorizationEndpoint,
-          tokenEndpoint,
-          issuer);
       // Validate the configuration
       validateOAuthConfig(authorizationEndpoint, tokenEndpoint, issuer);
       return new OAuthConfig(authorizationEndpoint, tokenEndpoint, issuer);
@@ -311,8 +284,6 @@ public class AzureExternalBrowserProvider implements CredentialsProvider {
       throw new DatabricksDriverException(
           "OAuth configuration is missing issuer", DatabricksDriverErrorCode.AUTH_ERROR);
     }
-
-    LOGGER.debug("OAuth configuration validation passed");
   }
 
   /** Generates PKCE challenge and verifier. */
@@ -329,40 +300,6 @@ public class AzureExternalBrowserProvider implements CredentialsProvider {
     return new PKCEChallenge(verifier, challenge);
   }
 
-  /** Finds an available port for the OAuth callback. */
-  private int findAvailablePort() {
-    List<Integer> portRange =
-        Optional.ofNullable(connectionContext.getOAuth2RedirectUrlPorts())
-            .orElse(DEFAULT_PORT_RANGE);
-
-    LOGGER.debug("Checking port availability for ports: {}", portRange);
-
-    for (int port : portRange) {
-      if (isPortAvailable(port)) {
-        LOGGER.debug("Found available port: {}", port);
-        return port;
-      } else {
-        LOGGER.debug("Port {} is not available", port);
-      }
-    }
-
-    String errorMessage =
-        String.format("No available ports found for OAuth callback. Tried ports: %s", portRange);
-    LOGGER.error(errorMessage);
-    throw new DatabricksDriverException(errorMessage, DatabricksDriverErrorCode.AUTH_ERROR);
-  }
-
-  /** Checks if a port is available. */
-  private boolean isPortAvailable(int port) {
-    try (java.net.ServerSocket socket = new java.net.ServerSocket(port)) {
-      socket.setReuseAddress(true);
-      return true;
-    } catch (IOException e) {
-      LOGGER.debug("Port {} is not available: {}", port, e.getMessage());
-      return false;
-    }
-  }
-
   /** Builds the authorization URL for OAuth flow. */
   private String buildAuthorizationUrl(PKCEChallenge pkce, String redirectUri, String state)
       throws Exception {
@@ -374,22 +311,17 @@ public class AzureExternalBrowserProvider implements CredentialsProvider {
     builder.addParameter("state", state);
     builder.addParameter("code_challenge", pkce.getChallenge());
     builder.addParameter("code_challenge_method", CODE_CHALLENGE_METHOD);
-
-    String authUrl = builder.build().toString();
-    LOGGER.debug("Built authorization URL: {}", authUrl);
-    return authUrl;
+    return builder.build().toString();
   }
 
   /** Opens the default browser with the authorization URL. */
-  private void openBrowser(String authUrl) throws Exception {
-    LOGGER.debug("Attempting to open browser for OAuth authentication");
+  private void openBrowser(String authUrl) {
     LOGGER.debug(
         "If the browser doesn't open automatically, please manually navigate to: {}", authUrl);
 
     if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
       try {
         Desktop.getDesktop().browse(new URI(authUrl));
-        LOGGER.debug("Successfully opened browser for OAuth authentication");
       } catch (Exception e) {
         LOGGER.warn(
             "Failed to open browser automatically: {}. Please manually open your browser and navigate to: {}",
@@ -716,8 +648,8 @@ public class AzureExternalBrowserProvider implements CredentialsProvider {
         String[] keyValue = pair.split("=", 2);
         if (keyValue.length == 2) {
           try {
-            String key = java.net.URLDecoder.decode(keyValue[0], "UTF-8");
-            String value = java.net.URLDecoder.decode(keyValue[1], "UTF-8");
+            String key = java.net.URLDecoder.decode(keyValue[0], StandardCharsets.UTF_8);
+            String value = java.net.URLDecoder.decode(keyValue[1], StandardCharsets.UTF_8);
             params.put(key, value);
           } catch (Exception e) {
             LOGGER.warn("Failed to decode query parameter: {}", pair);
