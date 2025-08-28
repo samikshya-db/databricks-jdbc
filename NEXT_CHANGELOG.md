@@ -12,6 +12,6 @@
 - Databricks SDK dependency upgraded to latest version 0.60.0
 
 ### Fixed
--
+- Integrated Azure U2M flow into driver for improved stability.
 ---
 *Note: When making changes, please add your change under the appropriate section with a brief description.* 
