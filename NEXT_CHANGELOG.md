@@ -11,12 +11,12 @@
 - **Configurable SQL validation in isValid()**: Added `EnableSQLValidationForIsValid` connection property to control whether `isValid()` method executes an actual SQL query for server-side validation. Default value is 0.
 - Implement multi-row INSERT batching optimization for prepared statements to improve performance when executing large batches of INSERT operations.
 - Implement lazy/incremental fetching for columnar results when using Databricks JDBC in Thrift mode without Arrow support. The change modifies the behavior from buffering entire result sets in memory to maintaining only a limited number of rows at a time, reducing peak heap memory usage and preventing OutOfMemory errors.
+- Added new artifact `databricks-jdbc-thin` for thin jar with runtime dependency metadata.
+- Introduce a memory-efficient columnar data access mechanism for JDBC result processing.
 - Added support for using a custom Discovery URL in U2M flows on AWS and GCP.
 
 ### Updated
 - Databricks SDK dependency upgraded to latest version 0.64.0
-- Added new artifact `databricks-jdbc-thin` for thin jar with runtime dependency metadata.
-- Introduce a memory-efficient columnar data access mechanism for JDBC result processing.
 - Updated the default value of RowsFetchedPerBlock to 100K from 2M to capture typical cases and balance memory usage.
 
 ### Fixed
