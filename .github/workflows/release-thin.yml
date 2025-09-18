@@ -1,4 +1,4 @@
-name: Release
+name: Release Thin JAR
 on:
   push:
     tags:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  publish:
+  publish-thin:
     runs-on:
       group: databricks-protected-runner-group
       labels: linux-ubuntu-latest
@@ -14,16 +14,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java for publishing to Maven Central Repository
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           java-version: 11
-          server-id: central
           distribution: "adopt"
-          server-username: MAVEN_CENTRAL_USERNAME
-          server-password: MAVEN_CENTRAL_PASSWORD
-          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg-passphrase: GPG_PASSPHRASE
 
       - name: Configure GPG
         run: |
@@ -31,14 +26,18 @@ jobs:
           echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
           gpg-connect-agent reloadagent /bye
 
-      - name: Publish to the Maven Central Repository
+      - name: Build thin JAR
         run: |
-          # Deploy main artifacts (uber JAR, sources, javadoc)
-          mvn -Prelease --batch-mode deploy -Dnvd.api.key=${{ secrets.NVD_API_KEY }}
+          mvn -B -DskipTests package
 
-      - name: Create GitHub release
+      - name: Verify thin jar exists
+        run: |
+          VERSION=$(grep -m1 '<version>' pom.xml | sed 's/.*<version>\(.*\)<\/version>.*/\1/')
+          test -f "target/databricks-jdbc-${VERSION}-oss-thin.jar"
+
+      - name: Upload Thin JAR to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            target/*.jar
-          fail_on_unmatched_files: false
+            target/*-oss-thin.jar
+
