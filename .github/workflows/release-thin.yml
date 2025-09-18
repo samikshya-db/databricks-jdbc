@@ -14,11 +14,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java
+      - name: Set up Java for publishing to Maven Central Repository
         uses: actions/setup-java@v4
         with:
           java-version: 11
           distribution: "adopt"
+          server-id: central
+          server-username: MAVEN_CENTRAL_USERNAME
+          server-password: MAVEN_CENTRAL_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: GPG_PASSPHRASE
 
       - name: Configure GPG
         run: |
@@ -34,6 +39,24 @@ jobs:
         run: |
           VERSION=$(grep -m1 '<version>' pom.xml | sed 's/.*<version>\(.*\)<\/version>.*/\1/')
           test -f "target/databricks-jdbc-${VERSION}-oss-thin.jar"
+
+      - name: Publish Thin JAR as Separate Artifact to Maven Central
+        run: |
+          VERSION=$(grep -m1 '<version>' pom.xml | sed 's/.*<version>\(.*\)<\/version>.*/\1/')
+          mvn -Prelease gpg:sign-and-deploy-file \
+            -Dfile="target/databricks-jdbc-${VERSION}-oss-thin.jar" \
+            -DrepositoryId=central \
+            -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ \
+            -DgroupId=com.databricks \
+            -DartifactId=databricks-jdbc-thin \
+            -Dversion="${VERSION}" \
+            -Dpackaging=jar \
+            -DgeneratePom=true \
+            -Dgpg.passphrase="${GPG_PASSPHRASE}"
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
 
       - name: Upload Thin JAR to GitHub Release
         uses: softprops/action-gh-release@v1
