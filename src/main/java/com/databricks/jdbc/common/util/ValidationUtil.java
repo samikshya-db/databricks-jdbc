@@ -103,9 +103,11 @@ public class ValidationUtil {
     }
     String statusLine = response.getStatusLine().toString();
     StringBuilder errorBuilder = new StringBuilder();
-    errorBuilder.append(String.format("HTTP request failed by code: %d, status line: %s.", statusCode, statusLine));
+    errorBuilder.append(
+        String.format("HTTP request failed by code: %d, status line: %s.", statusCode, statusLine));
     if (response.containsHeader(THRIFT_ERROR_MESSAGE_HEADER)) {
-      errorBuilder.append(String.format(
+      errorBuilder.append(
+          String.format(
               " Thrift Header : %s",
               response.getFirstHeader(THRIFT_ERROR_MESSAGE_HEADER).getValue()));
     }
