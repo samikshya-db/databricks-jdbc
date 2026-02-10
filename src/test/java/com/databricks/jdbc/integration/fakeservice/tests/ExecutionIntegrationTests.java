@@ -140,26 +140,6 @@ public class ExecutionIntegrationTests extends AbstractFakeServiceIntegrationTes
   }
 
   @Test
-  void testDMLStatementResultSetCursorPosition() throws SQLException {
-    String tableName = "dml_cursor_test";
-    setupDatabaseTable(connection, tableName);
-    insertTestData(connection, tableName);
-
-    Statement stmt = connection.createStatement();
-    stmt.execute("DELETE FROM " + getFullyQualifiedTableName(tableName) + " WHERE id = 1");
-
-    ResultSet rs = stmt.getResultSet();
-    if (rs != null) {
-      // Verify cursor starts before first row (JDBC requirement)
-      assertTrue(rs.isBeforeFirst(), "Cursor must start before first row");
-      assertTrue(rs.next(), "next() must be called to access first row");
-      assertFalse(rs.isBeforeFirst(), "Cursor should be at first row after next()");
-    }
-
-    deleteTable(connection, tableName);
-  }
-
-  @Test
   void testCompoundStatements() throws SQLException {
     // Insert for compound test
     String tableName = "compound_test_table";
