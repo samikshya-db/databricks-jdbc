@@ -922,7 +922,6 @@ public class DatabricksStatementTest {
             any(IDatabricksSession.class),
             eq(statement)))
         .thenReturn(resultSet);
-    when(resultSet.hasUpdateCount()).thenReturn(false); // SELECT query
 
     // Execute and get result set
     statement.execute(STATEMENT);
@@ -1000,7 +999,6 @@ public class DatabricksStatementTest {
             any(IDatabricksSession.class),
             eq(statement)))
         .thenReturn(resultSet);
-    when(resultSet.hasUpdateCount()).thenReturn(false);
 
     // Execute and advance past results
     statement.execute(STATEMENT);
@@ -1054,7 +1052,6 @@ public class DatabricksStatementTest {
             any(IDatabricksSession.class),
             eq(statement)))
         .thenReturn(resultSet);
-    when(resultSet.hasUpdateCount()).thenReturn(false);
 
     // Execute query
     statement.execute(STATEMENT);

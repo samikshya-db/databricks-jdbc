@@ -251,6 +251,8 @@ public class DatabricksStatement implements IDatabricksStatement, IDatabricksSta
   public int getUpdateCount() throws SQLException {
     LOGGER.debug("public int getUpdateCount()");
     checkIfClosed();
+    // Lazily compute update count from ResultSet if needed
+    computeUpdateCountIfNeeded();
     // Return SUCCESS_NO_INFO if update count exceeds int range, per JDBC spec
     return updateCount > Integer.MAX_VALUE ? Statement.SUCCESS_NO_INFO : (int) updateCount;
   }
@@ -259,7 +261,21 @@ public class DatabricksStatement implements IDatabricksStatement, IDatabricksSta
   public long getLargeUpdateCount() throws SQLException {
     LOGGER.debug("public long getLargeUpdateCount()");
     checkIfClosed();
+    // Lazily compute update count from ResultSet if needed
+    computeUpdateCountIfNeeded();
     return updateCount;
+  }
+
+  /**
+   * Lazily computes the update count from the ResultSet if it hasn't been computed yet. This method
+   * is called by getUpdateCount() and getLargeUpdateCount() to defer the computation until
+   * explicitly requested, preserving JDBC semantics where ResultSet cursors start before the first
+   * row.
+   */
+  private void computeUpdateCountIfNeeded() throws SQLException {
+    if (updateCount == -1 && !noMoreResults && resultSet != null && resultSet.hasUpdateCount()) {
+      updateCount = resultSet.getUpdateCount();
+    }
   }
 
   @Override
@@ -797,12 +813,10 @@ public class DatabricksStatement implements IDatabricksStatement, IDatabricksSta
     DatabricksThreadContextHolder.setStatementType(statementType);
     DatabricksResultSet result = executeInternal(sql, params, statementType, true);
 
-    // Update the updateCount field based on the result
-    if (result != null && result.hasUpdateCount()) {
-      updateCount = result.getUpdateCount();
-    } else {
-      updateCount = -1; // SELECT query or no update count
-    }
+    // Don't eagerly compute updateCount here as it would consume the ResultSet cursor.
+    // Instead, compute it lazily when getUpdateCount() or getLargeUpdateCount() is called.
+    // This preserves JDBC semantics where ResultSet cursor starts before the first row.
+    updateCount = -1;
 
     return result;
   }
