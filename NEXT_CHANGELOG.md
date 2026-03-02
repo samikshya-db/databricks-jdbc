@@ -10,6 +10,7 @@
 - PECOBLR-1121 Arrow patch to circumvent Arrow issues with JDK 16+.
 
 ### Fixed
+- Fixed statement timeout on interactive (all-purpose) clusters: when the cluster returns `TIMEDOUT_STATE` directly in the `ExecuteStatement` response (e.g. query queued under load), the driver now throws `SQLTimeoutException` instead of `DatabricksHttpException`.
 - Fixed `rollback()` to throw `SQLException` when called in auto-commit mode (no active transaction), aligning with JDBC spec. Previously it silently sent a ROLLBACK command to the server.
 - Fixed `fetchAutoCommitStateFromServer()` to accept both `"1"`/`"0"` and `"true"`/`"false"` responses from `SET AUTOCOMMIT` query, since different server implementations return different formats.
 - Fixed socket leak in SDK HTTP client that prevented CRaC checkpointing. The SDK's connection pool was not shut down on `connection.close()`, leaving TCP sockets open.
