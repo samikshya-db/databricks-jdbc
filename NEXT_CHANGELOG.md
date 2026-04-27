@@ -21,6 +21,7 @@
 - Fixed `getColumnClassName()` returning null for VARIANT columns in SEA mode by adding VARIANT to the type system.
 - Fixed `getColumns()` returning `DATA_TYPE=0` (NULL) for GEOMETRY/GEOGRAPHY columns in Thrift mode. Now returns `Types.VARCHAR` (12) when geospatial is disabled and `Types.OTHER` (1111) when enabled, consistent with SEA mode.
 - Fixed `getCrossReference()` returning 0 rows when parent args are passed in uppercase. The client-side filter used case-sensitive comparison against server-returned lowercase names.
+- Fixed `?` characters inside SQL comments, string literals, and quoted identifiers being incorrectly counted as parameter placeholders when `supportManyParameters=1`. `SQLInterpolator` now uses `SqlCommentParser` to locate only real placeholders. Fixes #1331.
 
 ---
 *Note: When making changes, please add your change under the appropriate section

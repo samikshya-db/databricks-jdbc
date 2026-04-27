@@ -120,6 +120,100 @@ public class SqlCommentParser {
   }
 
   /**
+   * Finds the source-string indices of placeholder ('?') characters that appear in {@link
+   * State#NORMAL} state — i.e. not inside comments, string literals, or quoted identifiers. Used by
+   * parameter binding to locate the real placeholders in a SQL statement.
+   *
+   * @param sql the SQL string to scan
+   * @return source-string indices of placeholder '?' characters, in order
+   */
+  public static int[] findPlaceholderPositions(String sql) {
+    if (sql == null || sql.isEmpty()) {
+      return new int[0];
+    }
+    int[] buf = new int[sql.length()];
+    int count = 0;
+    State state = State.NORMAL;
+    int blockCommentDepth = 0;
+
+    for (int i = 0; i < sql.length(); i++) {
+      char c = sql.charAt(i);
+      char next = (i + 1 < sql.length()) ? sql.charAt(i + 1) : '\0';
+
+      switch (state) {
+        case NORMAL:
+          if (c == '-' && next == '-') {
+            state = State.IN_LINE_COMMENT;
+            i++;
+          } else if (c == '/' && next == '*') {
+            state = State.IN_BLOCK_COMMENT;
+            blockCommentDepth = 1;
+            i++;
+          } else if (c == '\'') {
+            state = State.IN_SINGLE_QUOTE;
+          } else if (c == '"') {
+            state = State.IN_DOUBLE_QUOTE;
+          } else if (c == '`') {
+            state = State.IN_BACKTICK;
+          } else if (c == '?') {
+            buf[count++] = i;
+          }
+          break;
+
+        case IN_SINGLE_QUOTE:
+          if (c == '\'' && next == '\'') {
+            i++;
+          } else if (c == '\'') {
+            state = State.NORMAL;
+          }
+          break;
+
+        case IN_DOUBLE_QUOTE:
+          if (c == '"' && next == '"') {
+            i++;
+          } else if (c == '"') {
+            state = State.NORMAL;
+          }
+          break;
+
+        case IN_BACKTICK:
+          if (c == '`' && next == '`') {
+            i++;
+          } else if (c == '`') {
+            state = State.NORMAL;
+          }
+          break;
+
+        case IN_LINE_COMMENT:
+          if (c == '\n' || c == '\r') {
+            state = State.NORMAL;
+            if (c == '\r' && next == '\n') {
+              i++;
+            }
+          }
+          break;
+
+        case IN_BLOCK_COMMENT:
+          if (c == '/' && next == '*') {
+            blockCommentDepth++;
+            i++;
+          } else if (c == '*' && next == '/') {
+            blockCommentDepth--;
+            i++;
+            if (blockCommentDepth == 0) {
+              state = State.NORMAL;
+            }
+          }
+          break;
+      }
+    }
+
+    int[] out = new int[count];
+    System.arraycopy(buf, 0, out, 0, count);
+    return out;
+  }
+
+  /**
    * Removes all comments and extra whitespace from the SQL string.
    *
    * @param sql the SQL string to remove comments and extra whitespace from

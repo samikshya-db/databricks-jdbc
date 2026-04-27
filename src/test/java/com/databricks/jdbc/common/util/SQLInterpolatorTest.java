@@ -127,6 +127,59 @@ public class SQLInterpolatorTest {
   }
 
   @Test
+  public void testQuestionMarkInLineCommentNotTreatedAsPlaceholder()
+      throws DatabricksValidationException {
+    String sql = "-- does this work?\nselect * from mytable where id = ?";
+    Map<Integer, ImmutableSqlParameter> params = new HashMap<>();
+    params.put(1, getSqlParam(1, 42, DatabricksTypeUtil.INT));
+    String expected = "-- does this work?\nselect * from mytable where id = 42";
+    assertEquals(expected, SQLInterpolator.interpolateSQL(sql, params));
+  }
+
+  @Test
+  public void testQuestionMarkInBlockCommentNotTreatedAsPlaceholder()
+      throws DatabricksValidationException {
+    String sql = "select /* maybe? or ? */ * from t where id = ?";
+    Map<Integer, ImmutableSqlParameter> params = new HashMap<>();
+    params.put(1, getSqlParam(1, 1, DatabricksTypeUtil.INT));
+    String expected = "select /* maybe? or ? */ * from t where id = 1";
+    assertEquals(expected, SQLInterpolator.interpolateSQL(sql, params));
+  }
+
+  @Test
+  public void testQuestionMarkInStringLiteralNotTreatedAsPlaceholder()
+      throws DatabricksValidationException {
+    String sql = "select 'hello?', * from mytable where id = ?";
+    Map<Integer, ImmutableSqlParameter> params = new HashMap<>();
+    params.put(1, getSqlParam(1, 5, DatabricksTypeUtil.INT));
+    String expected = "select 'hello?', * from mytable where id = 5";
+    assertEquals(expected, SQLInterpolator.interpolateSQL(sql, params));
+  }
+
+  @Test
+  public void testQuestionMarkInQuotedIdentifierNotTreatedAsPlaceholder()
+      throws DatabricksValidationException {
+    String sql = "select `col?` from t where id = ? and name = \"who?\"";
+    Map<Integer, ImmutableSqlParameter> params = new HashMap<>();
+    params.put(1, getSqlParam(1, 7, DatabricksTypeUtil.INT));
+    String expected = "select `col?` from t where id = 7 and name = \"who?\"";
+    assertEquals(expected, SQLInterpolator.interpolateSQL(sql, params));
+  }
+
+  @Test
+  public void testCombinedCommentsAndLiteralsWithQuestionMarks()
+      throws DatabricksValidationException {
+    String sql =
+        "-- ?\n/* ? */ select 'a?' as x, ? as y, \"b?\" as z, `c?` as w from t where id = ?";
+    Map<Integer, ImmutableSqlParameter> params = new HashMap<>();
+    params.put(1, getSqlParam(1, "alice", DatabricksTypeUtil.STRING));
+    params.put(2, getSqlParam(2, 99, DatabricksTypeUtil.INT));
+    String expected =
+        "-- ?\n/* ? */ select 'a?' as x, 'alice' as y, \"b?\" as z, `c?` as w from t where id = 99";
+    assertEquals(expected, SQLInterpolator.interpolateSQL(sql, params));
+  }
+
+  @Test
   public void testEscapeInputs() {
     // Simple apostrophe doubling
     assertEquals("'foo''bar'", SQLInterpolator.escapeInputs("foo'bar"));

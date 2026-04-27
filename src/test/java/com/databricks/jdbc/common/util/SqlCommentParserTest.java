@@ -1,5 +1,6 @@
 package com.databricks.jdbc.common.util;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -391,5 +392,57 @@ public class SqlCommentParserTest {
     List<Character> chars = new ArrayList<>();
     SqlCommentParser.forEachNonCommentChar("a--x\nb", (state, c) -> chars.add(c));
     assertEquals(List.of('a', ' ', 'b'), chars);
+  }
+
+  // --- findPlaceholderPositions ---
+
+  @Test
+  public void testFindPlaceholderPositionsNullAndEmpty() {
+    assertArrayEquals(new int[0], SqlCommentParser.findPlaceholderPositions(null));
+    assertArrayEquals(new int[0], SqlCommentParser.findPlaceholderPositions(""));
+  }
+
+  @Test
+  public void testFindPlaceholderPositionsBasic() {
+    assertArrayEquals(
+        new int[] {29},
+        SqlCommentParser.findPlaceholderPositions("DELETE FROM log WHERE date = ?"));
+    assertArrayEquals(
+        new int[] {7, 10, 13}, SqlCommentParser.findPlaceholderPositions("select ?, ?, ? from t"));
+  }
+
+  @Test
+  public void testFindPlaceholderPositionsSkipsLineComment() {
+    String sql = "-- ?\nselect ? from t";
+    assertArrayEquals(
+        new int[] {sql.indexOf('?', 5)}, SqlCommentParser.findPlaceholderPositions(sql));
+  }
+
+  @Test
+  public void testFindPlaceholderPositionsSkipsBlockComment() {
+    String sql = "select /* ? or ? */ ? from t";
+    assertArrayEquals(
+        new int[] {sql.indexOf('?', 18)}, SqlCommentParser.findPlaceholderPositions(sql));
+  }
+
+  @Test
+  public void testFindPlaceholderPositionsSkipsStringLiteral() {
+    String sql = "select 'a?b' as x, ? as y from t";
+    assertArrayEquals(
+        new int[] {sql.indexOf('?', 12)}, SqlCommentParser.findPlaceholderPositions(sql));
+  }
+
+  @Test
+  public void testFindPlaceholderPositionsSkipsQuotedIdentifiers() {
+    String sql = "select \"col?\", `col?` from t where x = ?";
+    assertArrayEquals(
+        new int[] {sql.indexOf('?', 22)}, SqlCommentParser.findPlaceholderPositions(sql));
+  }
+
+  @Test
+  public void testFindPlaceholderPositionsHandlesEscapedQuotes() {
+    String sql = "select 'it''s ?' as x, ? as y from t";
+    assertArrayEquals(
+        new int[] {sql.indexOf('?', 16)}, SqlCommentParser.findPlaceholderPositions(sql));
   }
 }

@@ -65,22 +65,12 @@ public class SQLInterpolator {
     }
   }
 
-  private static int countPlaceholders(String sql) {
-    int count = 0;
-    for (char c : sql.toCharArray()) {
-      if (c == '?') {
-        count++;
-      }
-    }
-    return count;
-  }
-
   /**
    * Interpolates the given SQL string by replacing placeholders with the provided parameters.
    *
-   * <p>This method splits the SQL string by placeholders (question marks) and replaces each
-   * placeholder with the corresponding parameter from the provided map. The map keys are 1-based
-   * indexes, aligning with the SQL parameter positions.
+   * <p>Only '?' characters that appear outside of comments, string literals, and quoted identifiers
+   * are treated as placeholders. The map keys are 1-based indexes, aligning with the SQL parameter
+   * positions.
    *
    * @param sql the SQL string containing placeholders ('?') to be replaced.
    * @param params a map of parameters where the key is the 1-based index of the placeholder in the
@@ -91,18 +81,22 @@ public class SQLInterpolator {
    */
   public static String interpolateSQL(String sql, Map<Integer, ImmutableSqlParameter> params)
       throws DatabricksValidationException {
-    String[] parts = sql.split("\\?");
-    if (countPlaceholders(sql) != params.size()) {
+    int[] positions = SqlCommentParser.findPlaceholderPositions(sql);
+    if (positions.length != params.size()) {
       throw new DatabricksValidationException(
           "Parameter count does not match. Provide equal number of parameters as placeholders. SQL "
               + sql);
     }
-    StringBuilder sb = new StringBuilder();
-    for (int i = 0; i < parts.length; i++) {
-      sb.append(parts[i]);
-      if (i < params.size()) {
-        sb.append(formatObject(params.get(i + 1))); // because we have 1 based index in params
-      }
+    StringBuilder sb = new StringBuilder(sql.length() + 16);
+    int last = 0;
+    for (int i = 0; i < positions.length; i++) {
+      int pos = positions[i];
+      sb.append(sql, last, pos);
+      sb.append(formatObject(params.get(i + 1))); // 1-based index in params
+      last = pos + 1;
+    }
+    if (last < sql.length()) {
+      sb.append(sql, last, sql.length());
     }
     return sb.toString();
   }
