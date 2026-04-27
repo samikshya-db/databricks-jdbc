@@ -180,6 +180,25 @@ public class SQLInterpolatorTest {
   }
 
   @Test
+  public void testInterpolateAdjacentPlaceholders() throws DatabricksValidationException {
+    String sql = "select ?,?,? from t";
+    Map<Integer, ImmutableSqlParameter> params = new HashMap<>();
+    params.put(1, getSqlParam(1, 1, DatabricksTypeUtil.INT));
+    params.put(2, getSqlParam(2, 2, DatabricksTypeUtil.INT));
+    params.put(3, getSqlParam(3, 3, DatabricksTypeUtil.INT));
+    assertEquals("select 1,2,3 from t", SQLInterpolator.interpolateSQL(sql, params));
+  }
+
+  @Test
+  public void testInterpolatePlaceholderAtStartAndEnd() throws DatabricksValidationException {
+    Map<Integer, ImmutableSqlParameter> params = new HashMap<>();
+    params.put(1, getSqlParam(1, 7, DatabricksTypeUtil.INT));
+    assertEquals("7 ", SQLInterpolator.interpolateSQL("? ", params));
+    assertEquals(" 7", SQLInterpolator.interpolateSQL(" ?", params));
+    assertEquals("7", SQLInterpolator.interpolateSQL("?", params));
+  }
+
+  @Test
   public void testEscapeInputs() {
     // Simple apostrophe doubling
     assertEquals("'foo''bar'", SQLInterpolator.escapeInputs("foo'bar"));
@@ -230,7 +249,31 @@ public class SQLInterpolatorTest {
         Arguments.of(
             "SELECT * FROM table WHERE id = ? AND (name = ? OR age = ?) AND status = ?",
             "SELECT * FROM table WHERE id = '?' AND (name = '?' OR age = '?') AND status = '?'",
-            "Complex query with multiple conditions"));
+            "Complex query with multiple conditions"),
+
+        // ? inside line comment must not be quoted
+        Arguments.of(
+            "-- is this a ?\nSELECT ? FROM t",
+            "-- is this a ?\nSELECT '?' FROM t",
+            "Question mark inside line comment is preserved"),
+
+        // ? inside block comment must not be quoted
+        Arguments.of(
+            "SELECT /* ? */ ? FROM t",
+            "SELECT /* ? */ '?' FROM t",
+            "Question mark inside block comment is preserved"),
+
+        // ? inside double-quoted identifier must not be quoted
+        Arguments.of(
+            "SELECT \"col?\" FROM t WHERE id = ?",
+            "SELECT \"col?\" FROM t WHERE id = '?'",
+            "Question mark inside double-quoted identifier is preserved"),
+
+        // ? inside backtick identifier must not be quoted
+        Arguments.of(
+            "SELECT `col?` FROM t WHERE id = ?",
+            "SELECT `col?` FROM t WHERE id = '?'",
+            "Question mark inside backtick identifier is preserved"));
   }
 
   @ParameterizedTest(name = "{2}")

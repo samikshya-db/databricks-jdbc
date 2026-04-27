@@ -445,4 +445,35 @@ public class SqlCommentParserTest {
     assertArrayEquals(
         new int[] {sql.indexOf('?', 16)}, SqlCommentParser.findPlaceholderPositions(sql));
   }
+
+  @Test
+  public void testFindPlaceholderPositionsHandlesCrlfLineComment() {
+    String sql = "-- ?\r\nselect ? from t";
+    assertArrayEquals(
+        new int[] {sql.indexOf('?', 6)}, SqlCommentParser.findPlaceholderPositions(sql));
+  }
+
+  @Test
+  public void testFindPlaceholderPositionsHandlesNestedBlockCommentWithQuestionMarks() {
+    String sql = "select /* outer ? /* inner ? */ outer ? */ ? from t";
+    int outerEnd = sql.indexOf("*/ ?") + 3;
+    assertArrayEquals(new int[] {outerEnd}, SqlCommentParser.findPlaceholderPositions(sql));
+  }
+
+  @Test
+  public void testFindPlaceholderPositionsAdjacentPlaceholders() {
+    assertArrayEquals(new int[] {0, 1, 2}, SqlCommentParser.findPlaceholderPositions("???"));
+  }
+
+  @Test
+  public void testFindPlaceholderPositionsLeadingAndTrailingPlaceholder() {
+    assertArrayEquals(new int[] {0, 8}, SqlCommentParser.findPlaceholderPositions("? from t?"));
+  }
+
+  @Test
+  public void testFindPlaceholderPositionsHandlesEscapedBacktick() {
+    String sql = "select `c``ol?` from t where x = ?";
+    assertArrayEquals(
+        new int[] {sql.indexOf('?', 17)}, SqlCommentParser.findPlaceholderPositions(sql));
+  }
 }

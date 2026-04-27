@@ -6,8 +6,6 @@ import com.databricks.jdbc.api.impl.ImmutableSqlParameter;
 import com.databricks.jdbc.exception.DatabricksValidationException;
 import com.databricks.jdbc.model.core.ColumnInfoTypeName;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class SQLInterpolator {
   protected static String escapeInputs(String input) {
@@ -102,20 +100,27 @@ public class SQLInterpolator {
   }
 
   /**
-   * Surrounds unquoted placeholders (?) with single quotes, preserving already quoted ones. This is
-   * crucial for DESCRIBE QUERY commands as unquoted placeholders will cause a parse_syntax_error.
+   * Surrounds real placeholders (?) with single quotes, leaving '?' characters that appear inside
+   * comments, string literals, or quoted identifiers untouched. This is crucial for DESCRIBE QUERY
+   * commands, where bare placeholders cause a parse_syntax_error.
    */
   public static String surroundPlaceholdersWithQuotes(String sql) {
     if (sql == null || sql.isEmpty()) {
       return sql;
     }
-    // This pattern matches any '?' that is NOT already inside single quotes
-    StringBuilder sb = new StringBuilder();
-    Matcher m = Pattern.compile("(?<!')\\?(?!')").matcher(sql);
-    while (m.find()) {
-      m.appendReplacement(sb, "'?'");
+    int[] positions = SqlCommentParser.findPlaceholderPositions(sql);
+    if (positions.length == 0) {
+      return sql;
     }
-    m.appendTail(sb);
+    StringBuilder sb = new StringBuilder(sql.length() + positions.length * 2);
+    int last = 0;
+    for (int pos : positions) {
+      sb.append(sql, last, pos).append("'?'");
+      last = pos + 1;
+    }
+    if (last < sql.length()) {
+      sb.append(sql, last, sql.length());
+    }
     return sb.toString();
   }
 }
