@@ -116,6 +116,12 @@ public final class DatabricksJdbcConstants {
   /** Standard SQL state for communication link failure (SQLSTATE 08S01). */
   public static final String COMMUNICATION_LINK_FAILURE_SQLSTATE = "08S01";
 
+  /**
+   * Standard SQL state for transaction rollback - serialization failure (SQLSTATE 40001). Used for
+   * concurrent-modification errors where the operation is potentially retryable.
+   */
+  public static final String SERIALIZATION_FAILURE_SQLSTATE = "40001";
+
   public static final int TEMPORARY_REDIRECT_STATUS_CODE = 307;
   public static final String REDACTED_TOKEN = "****";
   public static final String QUERY_TAGS = "query_tags";

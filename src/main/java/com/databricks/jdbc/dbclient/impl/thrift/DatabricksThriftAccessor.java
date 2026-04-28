@@ -3,6 +3,7 @@ package com.databricks.jdbc.dbclient.impl.thrift;
 import static com.databricks.jdbc.common.DatabricksJdbcConstants.COMMUNICATION_LINK_FAILURE_SQLSTATE;
 import static com.databricks.jdbc.common.DatabricksJdbcConstants.OPERATION_CANCELLED_SQLSTATE;
 import static com.databricks.jdbc.common.DatabricksJdbcConstants.QUERY_EXECUTION_TIMEOUT_SQLSTATE;
+import static com.databricks.jdbc.common.DatabricksJdbcConstants.SERIALIZATION_FAILURE_SQLSTATE;
 import static com.databricks.jdbc.common.EnvironmentVariables.*;
 import static com.databricks.jdbc.common.util.DatabricksThriftUtil.*;
 
@@ -840,8 +841,9 @@ final class DatabricksThriftAccessor {
                   + "error: [%s]",
               statusResp.getStatus().getStatusCode(), statementId, serverError);
       LOGGER.error(errorMsg);
+      String originalSqlState = statusResp.isSetSqlState() ? statusResp.getSqlState() : null;
       throw new DatabricksSQLException(
-          errorMsg, statusResp.isSetSqlState() ? statusResp.getSqlState() : null);
+          errorMsg, classifyTransientSqlState(serverError, originalSqlState));
     }
 
     if (statusResp.isSetOperationState()
@@ -864,8 +866,40 @@ final class DatabricksThriftAccessor {
             errorMsg, null, DatabricksDriverErrorCode.OPERATION_TIMEOUT_ERROR);
       }
 
-      throw new DatabricksSQLException(errorMsg, sqlState);
+      throw new DatabricksSQLException(errorMsg, classifyTransientSqlState(serverError, sqlState));
     }
+  }
+
+  /**
+   * Reclassifies the SQL state for known transient or mis-categorized server errors so callers can
+   * programmatically identify retryable failures. Returns {@code originalSqlState} when no known
+   * pattern matches.
+   *
+   * <p>Patterns handled:
+   *
+   * <ul>
+   *   <li>Unity Catalog unavailability ({@code UC_CLIENT_EXCEPTION}, undocumented {@code XXUCC}) →
+   *       {@code 08S01} (communication link failure, retryable).
+   *   <li>Connection-acquisition / parquet read deadlines ({@code PARQUET_FAILED_READ_FOOTER},
+   *       {@code DEADLINE_EXCEEDED: acquiring connection}) with no SQL state → {@code 08S01}.
+   *   <li>Server-side {@code ConcurrentModificationException} mis-mapped to {@code 42000}
+   *       (syntax/access violation) → {@code 40001} (serialization failure, retryable).
+   * </ul>
+   */
+  static String classifyTransientSqlState(String errorMessage, String originalSqlState) {
+    if (errorMessage == null) {
+      return originalSqlState;
+    }
+    if (errorMessage.contains("ConcurrentModificationException")) {
+      return SERIALIZATION_FAILURE_SQLSTATE;
+    }
+    if (errorMessage.contains("UC_CLIENT_EXCEPTION")
+        || errorMessage.contains("Failed to contact the Unity Catalog server")
+        || errorMessage.contains("PARQUET_FAILED_READ_FOOTER")
+        || errorMessage.contains("DEADLINE_EXCEEDED: acquiring connection")) {
+      return COMMUNICATION_LINK_FAILURE_SQLSTATE;
+    }
+    return originalSqlState;
   }
 
   /**
