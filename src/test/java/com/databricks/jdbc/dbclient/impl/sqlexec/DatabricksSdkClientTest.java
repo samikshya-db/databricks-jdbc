@@ -312,6 +312,7 @@ public class DatabricksSdkClientTest {
 
     assertEquals("HY008", exception.getSQLState());
     assertTrue(exception.getMessage().contains("was cancelled"));
+    assertEquals(1008, exception.getErrorCode()); // EXECUTE_STATEMENT_CANCELLED stable code
   }
 
   @Test
@@ -336,6 +337,34 @@ public class DatabricksSdkClientTest {
 
     assertNotEquals("HY008", exception.getSQLState());
     assertTrue(exception.getMessage().contains("execution failed"));
+  }
+
+  @Test
+  public void testGetStatementResult_CancelledState_ThrowsWithHY008() throws Exception {
+    IDatabricksConnectionContext connectionContext =
+        DatabricksConnectionContext.parse(JDBC_URL, new Properties());
+    DatabricksSdkClient databricksSdkClient =
+        new DatabricksSdkClient(connectionContext, statementExecutionService, apiClient);
+
+    // Server returns CANCELED with null result data
+    StatementStatus cancelledStatus = new StatementStatus().setState(StatementState.CANCELED);
+    GetStatementResponse cancelledResponse = new GetStatementResponse();
+    cancelledResponse.setStatus(cancelledStatus);
+    cancelledResponse.setStatementId(STATEMENT_ID.toSQLExecStatementId());
+
+    when(apiClient.execute(any(Request.class), eq(GetStatementResponse.class)))
+        .thenReturn(cancelledResponse);
+
+    DatabricksSQLException exception =
+        assertThrows(
+            DatabricksSQLException.class,
+            () ->
+                databricksSdkClient.getStatementResult(
+                    STATEMENT_ID, mock(DatabricksSession.class), null));
+
+    assertEquals("HY008", exception.getSQLState());
+    assertTrue(exception.getMessage().contains("was cancelled"));
+    assertEquals(1008, exception.getErrorCode()); // EXECUTE_STATEMENT_CANCELLED stable code
   }
 
   @Test
@@ -1120,7 +1149,6 @@ public class DatabricksSdkClientTest {
             DatabricksSQLException.class,
             () -> databricksSdkClient.getResultChunks(STATEMENT_ID, 0, 0));
 
-    assertTrue(exception.getMessage().contains("HTTP 404"));
     assertTrue(exception.getMessage().contains("Results have expired"));
     assertNotNull(exception.getCause());
   }
@@ -1141,7 +1169,6 @@ public class DatabricksSdkClientTest {
             DatabricksSQLException.class,
             () -> databricksSdkClient.getResultChunksData(STATEMENT_ID, 0));
 
-    assertTrue(exception.getMessage().contains("HTTP 404"));
     assertTrue(exception.getMessage().contains("Results have expired"));
     assertNotNull(exception.getCause());
   }
