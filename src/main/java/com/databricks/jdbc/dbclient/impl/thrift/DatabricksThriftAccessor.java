@@ -3,9 +3,9 @@ package com.databricks.jdbc.dbclient.impl.thrift;
 import static com.databricks.jdbc.common.DatabricksJdbcConstants.COMMUNICATION_LINK_FAILURE_SQLSTATE;
 import static com.databricks.jdbc.common.DatabricksJdbcConstants.OPERATION_CANCELLED_SQLSTATE;
 import static com.databricks.jdbc.common.DatabricksJdbcConstants.QUERY_EXECUTION_TIMEOUT_SQLSTATE;
-import static com.databricks.jdbc.common.DatabricksJdbcConstants.SERIALIZATION_FAILURE_SQLSTATE;
 import static com.databricks.jdbc.common.EnvironmentVariables.*;
 import static com.databricks.jdbc.common.util.DatabricksThriftUtil.*;
+import static com.databricks.jdbc.common.util.SqlStateClassifier.classifyTransientSqlState;
 
 import com.databricks.jdbc.api.impl.*;
 import com.databricks.jdbc.api.internal.IDatabricksConnectionContext;
@@ -30,6 +30,7 @@ import com.databricks.sdk.core.DatabricksConfig;
 import com.databricks.sdk.service.sql.StatementState;
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import org.apache.http.HttpException;
 import org.apache.thrift.TBase;
@@ -380,7 +381,16 @@ final class DatabricksThriftAccessor {
             "Received error response {} from Thrift Server for request {}",
             response,
             request.toString());
-        throw new DatabricksSQLException(response.status.errorMessage, response.status.sqlState);
+        String originalSqlState = response.status.sqlState;
+        String remappedSqlState =
+            classifyTransientSqlState(response.status.errorMessage, originalSqlState);
+        if (!Objects.equals(remappedSqlState, originalSqlState)) {
+          LOGGER.info(
+              "Remapped SQL state [{}] -> [{}] for transient error pattern in async execute response",
+              originalSqlState,
+              remappedSqlState);
+        }
+        throw new DatabricksSQLException(response.status.errorMessage, remappedSqlState);
       }
     } catch (DatabricksSQLException | TException e) {
 
@@ -820,7 +830,16 @@ final class DatabricksThriftAccessor {
     if (!response.isSet(operationHandleField) || isErrorStatusCode(status)) {
       // if the operationHandle has not been set, it is an error from the server.
       LOGGER.error("Error thrift response {}", response);
-      throw new DatabricksSQLException(status.getErrorMessage(), status.getSqlState());
+      String originalSqlState = status.getSqlState();
+      String remappedSqlState =
+          classifyTransientSqlState(status.getErrorMessage(), originalSqlState);
+      if (!Objects.equals(remappedSqlState, originalSqlState)) {
+        LOGGER.info(
+            "Remapped SQL state [{}] -> [{}] for transient error pattern in thrift response",
+            originalSqlState,
+            remappedSqlState);
+      }
+      throw new DatabricksSQLException(status.getErrorMessage(), remappedSqlState);
     }
   }
 
@@ -842,8 +861,15 @@ final class DatabricksThriftAccessor {
               statusResp.getStatus().getStatusCode(), statementId, serverError);
       LOGGER.error(errorMsg);
       String originalSqlState = statusResp.isSetSqlState() ? statusResp.getSqlState() : null;
-      throw new DatabricksSQLException(
-          errorMsg, classifyTransientSqlState(serverError, originalSqlState));
+      String remappedSqlState = classifyTransientSqlState(serverError, originalSqlState);
+      if (!Objects.equals(remappedSqlState, originalSqlState)) {
+        LOGGER.info(
+            "Remapped SQL state [{}] -> [{}] for transient error pattern in statement [{}]",
+            originalSqlState,
+            remappedSqlState,
+            statementId);
+      }
+      throw new DatabricksSQLException(errorMsg, remappedSqlState);
     }
 
     if (statusResp.isSetOperationState()
@@ -866,40 +892,16 @@ final class DatabricksThriftAccessor {
             errorMsg, null, DatabricksDriverErrorCode.OPERATION_TIMEOUT_ERROR);
       }
 
-      throw new DatabricksSQLException(errorMsg, classifyTransientSqlState(serverError, sqlState));
+      String remappedSqlState = classifyTransientSqlState(serverError, sqlState);
+      if (!Objects.equals(remappedSqlState, sqlState)) {
+        LOGGER.info(
+            "Remapped SQL state [{}] -> [{}] for transient error pattern in statement [{}]",
+            sqlState,
+            remappedSqlState,
+            statementId);
+      }
+      throw new DatabricksSQLException(errorMsg, remappedSqlState);
     }
-  }
-
-  /**
-   * Reclassifies the SQL state for known transient or mis-categorized server errors so callers can
-   * programmatically identify retryable failures. Returns {@code originalSqlState} when no known
-   * pattern matches.
-   *
-   * <p>Patterns handled:
-   *
-   * <ul>
-   *   <li>Unity Catalog unavailability ({@code UC_CLIENT_EXCEPTION}, undocumented {@code XXUCC}) →
-   *       {@code 08S01} (communication link failure, retryable).
-   *   <li>Connection-acquisition / parquet read deadlines ({@code PARQUET_FAILED_READ_FOOTER},
-   *       {@code DEADLINE_EXCEEDED: acquiring connection}) with no SQL state → {@code 08S01}.
-   *   <li>Server-side {@code ConcurrentModificationException} mis-mapped to {@code 42000}
-   *       (syntax/access violation) → {@code 40001} (serialization failure, retryable).
-   * </ul>
-   */
-  static String classifyTransientSqlState(String errorMessage, String originalSqlState) {
-    if (errorMessage == null) {
-      return originalSqlState;
-    }
-    if (errorMessage.contains("ConcurrentModificationException")) {
-      return SERIALIZATION_FAILURE_SQLSTATE;
-    }
-    if (errorMessage.contains("UC_CLIENT_EXCEPTION")
-        || errorMessage.contains("Failed to contact the Unity Catalog server")
-        || errorMessage.contains("PARQUET_FAILED_READ_FOOTER")
-        || errorMessage.contains("DEADLINE_EXCEEDED: acquiring connection")) {
-      return COMMUNICATION_LINK_FAILURE_SQLSTATE;
-    }
-    return originalSqlState;
   }
 
   /**

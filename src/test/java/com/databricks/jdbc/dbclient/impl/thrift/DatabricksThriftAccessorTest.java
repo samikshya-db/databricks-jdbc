@@ -1226,43 +1226,7 @@ public class DatabricksThriftAccessorTest {
   }
 
   @Test
-  void classifyTransientSqlState_unityCatalogUnavailable_remapsXxuccTo08S01() {
-    String ucMessage =
-        "Error running query: [UC_CLIENT_EXCEPTION] "
-            + "com.databricks.sql.managedcatalog.UnityCatalogClientException: "
-            + "[UC_CLIENT_EXCEPTION] Failed to contact the Unity Catalog server. "
-            + "HTTP/1.1 504 Gateway Timeout, DEADLINE_EXCEEDED";
-    assertEquals("08S01", DatabricksThriftAccessor.classifyTransientSqlState(ucMessage, "XXUCC"));
-  }
-
-  @Test
-  void classifyTransientSqlState_concurrentModification_remaps42000To40001() {
-    String message =
-        "Error running query: java.util.ConcurrentModificationException: "
-            + "mutation occurred during iteration";
-    assertEquals("40001", DatabricksThriftAccessor.classifyTransientSqlState(message, "42000"));
-  }
-
-  @Test
-  void classifyTransientSqlState_parquetReadFooterDeadline_assigns08S01WhenNullState() {
-    String message =
-        "Error running query: [PARQUET_FAILED_READ_FOOTER] "
-            + "com.databricks.sql.io.parquet.ParquetFailedReadFooterException: "
-            + "DEADLINE_EXCEEDED: acquiring connection";
-    assertEquals("08S01", DatabricksThriftAccessor.classifyTransientSqlState(message, null));
-  }
-
-  @Test
-  void classifyTransientSqlState_unrelatedError_preservesOriginalState() {
-    assertEquals(
-        "42S02",
-        DatabricksThriftAccessor.classifyTransientSqlState(
-            "Table or view not found: foo.bar.baz", "42S02"));
-    assertNull(DatabricksThriftAccessor.classifyTransientSqlState(null, null));
-  }
-
-  @Test
-  void testExecute_remapsUnityCatalogErrorToCommunicationLinkFailure()
+  void testExecute_remapsUcErrorOnStatusCodeBranchToCommunicationLinkFailure()
       throws TException, SQLException, DatabricksValidationException {
     setup(true);
     TExecuteStatementReq request = new TExecuteStatementReq();
@@ -1274,6 +1238,7 @@ public class DatabricksThriftAccessorTest {
     String ucErrorMessage =
         "Error running query: [UC_CLIENT_EXCEPTION] Failed to contact the Unity Catalog server. "
             + "HTTP/1.1 504 Gateway Timeout, DEADLINE_EXCEEDED";
+    // ERROR_STATUS triggers the status-code branch in checkOperationStatusForErrors first.
     TGetOperationStatusResp ucErrorResp =
         new TGetOperationStatusResp()
             .setStatus(
@@ -1296,7 +1261,90 @@ public class DatabricksThriftAccessorTest {
             DatabricksSQLException.class,
             () -> accessor.execute(request, parentStatement, session, StatementType.SQL));
     assertEquals("08S01", e.getSQLState(), "Expected UC error to be remapped to 08S01");
+    assertNotEquals("XXUCC", e.getSQLState(), "Expected XXUCC to have been remapped");
     assertTrue(e.getMessage().contains("UC_CLIENT_EXCEPTION"));
+  }
+
+  @Test
+  void testExecute_remapsUcErrorOnOperationStateBranchToCommunicationLinkFailure()
+      throws TException, SQLException, DatabricksValidationException {
+    setup(true);
+    TExecuteStatementReq request = new TExecuteStatementReq();
+    TExecuteStatementResp tExecuteStatementResp =
+        new TExecuteStatementResp()
+            .setOperationHandle(tOperationHandle)
+            .setStatus(new TStatus().setStatusCode(TStatusCode.SUCCESS_STATUS));
+
+    String ucErrorMessage =
+        "Error running query: [UC_CLIENT_EXCEPTION] Failed to contact the Unity Catalog server. "
+            + "HTTP/1.1 504 Gateway Timeout, DEADLINE_EXCEEDED";
+    // SUCCESS_STATUS on TStatus skips the status-code branch and falls through to the
+    // operation-state branch (the second classifier call site in checkOperationStatusForErrors).
+    TGetOperationStatusResp ucErrorResp =
+        new TGetOperationStatusResp()
+            .setStatus(
+                new TStatus()
+                    .setStatusCode(TStatusCode.SUCCESS_STATUS)
+                    .setErrorMessage(ucErrorMessage)
+                    .setSqlState("XXUCC"))
+            .setSqlState("XXUCC")
+            .setOperationState(TOperationState.ERROR_STATE);
+
+    when(thriftClient.ExecuteStatement(request)).thenReturn(tExecuteStatementResp);
+    when(thriftClient.GetOperationStatus(any(TGetOperationStatusReq.class)))
+        .thenReturn(ucErrorResp);
+    Statement statement = mock(Statement.class);
+    when(parentStatement.getStatement()).thenReturn(statement);
+    when(statement.getQueryTimeout()).thenReturn(0);
+
+    DatabricksSQLException e =
+        assertThrows(
+            DatabricksSQLException.class,
+            () -> accessor.execute(request, parentStatement, session, StatementType.SQL));
+    assertEquals(
+        "08S01",
+        e.getSQLState(),
+        "Expected UC error on operation-state branch to be remapped to 08S01");
+  }
+
+  @Test
+  void testExecute_remapsConcurrentModificationOnOperationStateBranchToSerializationFailure()
+      throws TException, SQLException, DatabricksValidationException {
+    setup(true);
+    TExecuteStatementReq request = new TExecuteStatementReq();
+    TExecuteStatementResp tExecuteStatementResp =
+        new TExecuteStatementResp()
+            .setOperationHandle(tOperationHandle)
+            .setStatus(new TStatus().setStatusCode(TStatusCode.SUCCESS_STATUS));
+
+    String cmeErrorMessage =
+        "Error running query: java.util.ConcurrentModificationException: "
+            + "mutation occurred during iteration";
+    TGetOperationStatusResp cmeErrorResp =
+        new TGetOperationStatusResp()
+            .setStatus(
+                new TStatus()
+                    .setStatusCode(TStatusCode.SUCCESS_STATUS)
+                    .setErrorMessage(cmeErrorMessage)
+                    .setSqlState("42000"))
+            .setSqlState("42000")
+            .setOperationState(TOperationState.ERROR_STATE);
+
+    when(thriftClient.ExecuteStatement(request)).thenReturn(tExecuteStatementResp);
+    when(thriftClient.GetOperationStatus(any(TGetOperationStatusReq.class)))
+        .thenReturn(cmeErrorResp);
+    Statement statement = mock(Statement.class);
+    when(parentStatement.getStatement()).thenReturn(statement);
+    when(statement.getQueryTimeout()).thenReturn(0);
+
+    DatabricksSQLException e =
+        assertThrows(
+            DatabricksSQLException.class,
+            () -> accessor.execute(request, parentStatement, session, StatementType.SQL));
+    assertEquals(
+        "40001",
+        e.getSQLState(),
+        "Expected ConcurrentModificationException with 42000 to be remapped to 40001");
   }
 
   private TFetchResultsReq getFetchResultsRequest(boolean includeMetadata)
