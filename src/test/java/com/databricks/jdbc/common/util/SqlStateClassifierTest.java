@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 class SqlStateClassifierTest {
 
   @Test
-  void unityCatalogBracketedTokenRemapsTo08S01() {
+  void unityCatalogTokenRemapsTo08S01() {
     String ucMessage =
         "Error running query: [UC_CLIENT_EXCEPTION] "
             + "com.databricks.sql.managedcatalog.UnityCatalogClientException: "
@@ -19,7 +19,7 @@ class SqlStateClassifierTest {
   }
 
   @Test
-  void parquetReadFooterBracketedTokenRemapsTo08S01() {
+  void parquetReadFooterTokenRemapsTo08S01() {
     String message =
         "Error running query: [PARQUET_FAILED_READ_FOOTER] "
             + "com.databricks.sql.io.parquet.ParquetFailedReadFooterException: "
@@ -61,7 +61,7 @@ class SqlStateClassifierTest {
   }
 
   @Test
-  void unbracketedUcProseDoesNotTriggerRemap() {
+  void ucProseWithoutTokenDoesNotTriggerRemap() {
     assertEquals(
         "42S02",
         classifyTransientSqlState(
