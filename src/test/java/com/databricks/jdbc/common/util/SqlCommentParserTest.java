@@ -476,4 +476,58 @@ public class SqlCommentParserTest {
     assertArrayEquals(
         new int[] {sql.indexOf('?', 17)}, SqlCommentParser.findPlaceholderPositions(sql));
   }
+
+  @Test
+  public void testFindPlaceholderPositionsCommentsOnlySql() {
+    assertArrayEquals(new int[0], SqlCommentParser.findPlaceholderPositions("-- just a comment"));
+    assertArrayEquals(new int[0], SqlCommentParser.findPlaceholderPositions("-- foo\n"));
+    assertArrayEquals(new int[0], SqlCommentParser.findPlaceholderPositions("/* block ? */"));
+    assertArrayEquals(
+        new int[0], SqlCommentParser.findPlaceholderPositions("-- ?\n/* ? */ -- more"));
+  }
+
+  @Test
+  public void testFindPlaceholderPositionsLineCommentImmediatelyConsumesQuestionMark() {
+    // `?` appearing right after the `--` line-comment opener is part of the comment.
+    assertArrayEquals(new int[0], SqlCommentParser.findPlaceholderPositions("--?"));
+    assertArrayEquals(new int[0], SqlCommentParser.findPlaceholderPositions("--?\n"));
+    String sql = "--?\nselect ? from t";
+    assertArrayEquals(
+        new int[] {sql.indexOf('?', 4)}, SqlCommentParser.findPlaceholderPositions(sql));
+  }
+
+  @Test
+  public void testFindPlaceholderPositionsUnclosedSingleQuote() {
+    // `?` inside an unterminated single-quoted literal stays inside the literal and is not a
+    // placeholder.
+    assertArrayEquals(
+        new int[0], SqlCommentParser.findPlaceholderPositions("select 'never ? closed"));
+  }
+
+  @Test
+  public void testFindPlaceholderPositionsUnclosedDoubleQuote() {
+    assertArrayEquals(
+        new int[0], SqlCommentParser.findPlaceholderPositions("select \"never ? closed"));
+  }
+
+  @Test
+  public void testFindPlaceholderPositionsUnclosedBacktick() {
+    assertArrayEquals(
+        new int[0], SqlCommentParser.findPlaceholderPositions("select `never ? closed"));
+  }
+
+  @Test
+  public void testFindPlaceholderPositionsUnclosedBlockComment() {
+    assertArrayEquals(
+        new int[0], SqlCommentParser.findPlaceholderPositions("select /* never ? closed"));
+  }
+
+  @Test
+  public void testFindPlaceholderPositionsBacktickWithEscapeBetweenQuestionMarks() {
+    // `?` then escaped backtick (``) then `?` — both `?` characters stay inside the identifier.
+    String sql = "select `a?``b?` from t where x = ?";
+    assertArrayEquals(
+        new int[] {sql.indexOf('?', sql.indexOf("from"))},
+        SqlCommentParser.findPlaceholderPositions(sql));
+  }
 }

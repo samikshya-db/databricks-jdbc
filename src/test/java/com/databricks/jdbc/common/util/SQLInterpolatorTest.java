@@ -273,7 +273,13 @@ public class SQLInterpolatorTest {
         Arguments.of(
             "SELECT `col?` FROM t WHERE id = ?",
             "SELECT `col?` FROM t WHERE id = '?'",
-            "Question mark inside backtick identifier is preserved"));
+            "Question mark inside backtick identifier is preserved"),
+
+        // Adjacent placeholders — both must be quoted independently
+        Arguments.of(
+            "SELECT ?,?,? FROM t",
+            "SELECT '?','?','?' FROM t",
+            "Adjacent placeholders are each quoted"));
   }
 
   @ParameterizedTest(name = "{2}")
