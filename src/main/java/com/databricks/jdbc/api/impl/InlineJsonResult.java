@@ -52,13 +52,14 @@ public class InlineJsonResult implements IExecutionResult {
     }
     if (currentRow == -1) {
       throw new DatabricksSQLException(
-          "Cursor is before first row", DatabricksDriverErrorCode.INVALID_STATE);
+          "Cursor is before first row", DatabricksDriverErrorCode.CURSOR_INVALID_POSITION);
     }
     if (columnIndex < data.get((int) currentRow).size()) {
       return data.get((int) currentRow).get(columnIndex);
     }
     throw new DatabricksSQLException(
-        "Column index out of bounds " + columnIndex, DatabricksDriverErrorCode.INVALID_STATE);
+        "Column index out of bounds " + columnIndex,
+        DatabricksDriverErrorCode.COLUMN_INDEX_OUT_OF_BOUNDS);
   }
 
   @Override

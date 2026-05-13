@@ -393,7 +393,8 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
     if (table == null) {
       LOGGER.debug("listExportedKeys: table is null, throwing");
       throw new DatabricksSQLException(
-          "Invalid argument: tableName may not be null", DatabricksDriverErrorCode.INVALID_STATE);
+          "Invalid argument: tableName may not be null",
+          DatabricksDriverErrorCode.INPUT_VALIDATION_ERROR);
     }
 
     // Only fetch currentCatalog if multiple catalog support is disabled
@@ -527,7 +528,7 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
       LOGGER.debug("resolveKeyBasedParams: table is null or empty, throwing");
       throw new DatabricksSQLException(
           "Invalid argument: tableName may not be null or empty",
-          DatabricksDriverErrorCode.INVALID_STATE);
+          DatabricksDriverErrorCode.INPUT_VALIDATION_ERROR);
     }
 
     if (catalog == null) {
@@ -541,7 +542,7 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
           "resolveKeyBasedParams: schema is null with explicit catalog '{}', throwing", catalog);
       throw new DatabricksSQLException(
           "Invalid argument: schema may not be null when catalog is specified",
-          DatabricksDriverErrorCode.INVALID_STATE);
+          DatabricksDriverErrorCode.INPUT_VALIDATION_ERROR);
     }
 
     // Safety net: getCurrentCatalogAndSchema() returned null values
@@ -552,7 +553,7 @@ public class DatabricksMetadataQueryClient implements IDatabricksMetadataClient 
           schema);
       throw new DatabricksSQLException(
           "Invalid argument: could not resolve catalog or schema",
-          DatabricksDriverErrorCode.INVALID_STATE);
+          DatabricksDriverErrorCode.INPUT_VALIDATION_ERROR);
     }
 
     return new String[] {catalog, schema, table};

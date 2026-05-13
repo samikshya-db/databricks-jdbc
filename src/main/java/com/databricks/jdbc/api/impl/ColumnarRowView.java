@@ -46,11 +46,13 @@ public class ColumnarRowView {
   public Object getValue(int rowIndex, int columnIndex) throws DatabricksSQLException {
     if (rowIndex < 0 || rowIndex >= rowCount) {
       throw new DatabricksSQLException(
-          "Row index out of bounds: " + rowIndex, DatabricksDriverErrorCode.INVALID_STATE);
+          "Row index out of bounds: " + rowIndex,
+          DatabricksDriverErrorCode.ROW_INDEX_OUT_OF_BOUNDS);
     }
     if (columnIndex < 0 || columnIndex >= columnAccessors.length) {
       throw new DatabricksSQLException(
-          "Column index out of bounds: " + columnIndex, DatabricksDriverErrorCode.INVALID_STATE);
+          "Column index out of bounds: " + columnIndex,
+          DatabricksDriverErrorCode.COLUMN_INDEX_OUT_OF_BOUNDS);
     }
 
     return columnAccessors[columnIndex].getValue(rowIndex);
@@ -63,7 +65,8 @@ public class ColumnarRowView {
   public Object[] materializeRow(int rowIndex) throws DatabricksSQLException {
     if (rowIndex < 0 || rowIndex >= rowCount) {
       throw new DatabricksSQLException(
-          "Row index out of bounds: " + rowIndex, DatabricksDriverErrorCode.INVALID_STATE);
+          "Row index out of bounds: " + rowIndex,
+          DatabricksDriverErrorCode.ROW_INDEX_OUT_OF_BOUNDS);
     }
 
     Object[] row = new Object[columnAccessors.length];

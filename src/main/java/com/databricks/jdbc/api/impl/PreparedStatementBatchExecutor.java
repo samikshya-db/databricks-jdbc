@@ -100,7 +100,7 @@ class PreparedStatementBatchExecutor {
         if (configuredBatchSize < 1) {
           throw new DatabricksSQLException(
               "BatchInsertSize must be at least 1, got: " + configuredBatchSize,
-              DatabricksDriverErrorCode.INVALID_STATE);
+              DatabricksDriverErrorCode.INPUT_VALIDATION_ERROR);
         }
         maxRowsPerChunk = Math.min(configuredBatchSize, batchParameterMetaData.size());
       } else {

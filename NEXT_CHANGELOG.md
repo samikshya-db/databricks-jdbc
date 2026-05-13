@@ -17,6 +17,7 @@
 ### Updated
 - `EnableGeoSpatialSupport` no longer requires `EnableComplexDatatypeSupport=1`. Geospatial types (GEOMETRY, GEOGRAPHY) can now be enabled independently of complex type support (ARRAY, MAP, STRUCT).
 - Arrow schema deserialization failures (Thrift metadata path) now surface a dedicated driver error code `ARROW_SCHEMA_PARSING_ERROR` (vendor code `22000`) and a proper SQLSTATE `22000` (Data Exception) on the thrown `SQLException`, instead of the generic `RESULT_SET_ERROR` (1004) and the enum name as SQLSTATE. The exception message is unchanged.
+- Replaced the generic `INVALID_STATE` driver error code at ~30 call sites with more specific codes so telemetry buckets are actionable. New codes: `CURSOR_INVALID_POSITION` (1045), `COLUMN_INDEX_OUT_OF_BOUNDS` (1046), `ROW_INDEX_OUT_OF_BOUNDS` (1047), `THRIFT_RPC_ERROR` (1048), `THRIFT_RESPONSE_MISMATCH` (1049), `INVALID_RESPONSE_FORMAT` (1050), `THREAD_POOL_EXECUTION_ERROR` (1051), `STREAM_READ_ERROR` (1052). Null/argument validation sites now reuse `INPUT_VALIDATION_ERROR` (1015); volume-operation state errors now reuse `VOLUME_OPERATION_INVALID_STATE` (1028). Applications that key on `getSQLState() == "INVALID_STATE"` for result-set navigation, Thrift RPC, or stream-read failures will now see the new state names.
 
 ### Fixed
 - Fixed `?` characters inside SQL comments, string literals, and quoted identifiers being incorrectly counted as parameter placeholders when `supportManyParameters=1`. `SQLInterpolator` now uses `SqlCommentParser` to locate only real placeholders. Fixes #1331.

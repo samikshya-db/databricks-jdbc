@@ -73,15 +73,16 @@ public class LazyThriftResult implements IExecutionResult {
     }
     if (globalRowIndex == -1) {
       throw new DatabricksSQLException(
-          "Cursor is before first row", DatabricksDriverErrorCode.INVALID_STATE);
+          "Cursor is before first row", DatabricksDriverErrorCode.CURSOR_INVALID_POSITION);
     }
     if (currentBatchIndex < 0 || currentBatchIndex >= currentBatch.getRowCount()) {
       throw new DatabricksSQLException(
-          "Invalid cursor position", DatabricksDriverErrorCode.INVALID_STATE);
+          "Invalid cursor position", DatabricksDriverErrorCode.CURSOR_INVALID_POSITION);
     }
     if (columnIndex < 0 || columnIndex >= currentBatch.getColumnCount()) {
       throw new DatabricksSQLException(
-          "Column index out of bounds " + columnIndex, DatabricksDriverErrorCode.INVALID_STATE);
+          "Column index out of bounds " + columnIndex,
+          DatabricksDriverErrorCode.COLUMN_INDEX_OUT_OF_BOUNDS);
     }
     return currentBatch.getValue(currentBatchIndex, columnIndex);
   }

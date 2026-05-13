@@ -1137,14 +1137,14 @@ public class DatabricksDatabaseMetaData implements DatabaseMetaData {
       LOGGER.debug("getCrossReference: parentTable is null or empty, throwing");
       throw new DatabricksSQLException(
           "Invalid argument: parentTable may not be null or empty",
-          DatabricksDriverErrorCode.INVALID_STATE);
+          DatabricksDriverErrorCode.INPUT_VALIDATION_ERROR);
     }
     // Empty foreign table is also invalid — Thrift server rejects it
     if (foreignTable != null && foreignTable.isEmpty()) {
       LOGGER.debug("getCrossReference: foreignTable is empty string, throwing");
       throw new DatabricksSQLException(
           "Invalid argument: foreignTable may not be empty",
-          DatabricksDriverErrorCode.INVALID_STATE);
+          DatabricksDriverErrorCode.INPUT_VALIDATION_ERROR);
     }
 
     return session
@@ -1578,7 +1578,7 @@ public class DatabricksDatabaseMetaData implements DatabaseMetaData {
     }
 
     throw new DatabricksSQLException(
-        "Cannot unwrap to " + iface.getName(), DatabricksDriverErrorCode.INVALID_STATE);
+        "Cannot unwrap to " + iface.getName(), DatabricksDriverErrorCode.INPUT_VALIDATION_ERROR);
   }
 
   /** {@inheritDoc} */

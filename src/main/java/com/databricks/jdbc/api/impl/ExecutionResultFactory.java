@@ -51,7 +51,7 @@ class ExecutionResultFactory {
       throws DatabricksSQLException {
     if (manifest.getFormat() == null) {
       throw new DatabricksParsingException(
-          "Empty response format", DatabricksDriverErrorCode.INVALID_STATE);
+          "Empty response format", DatabricksDriverErrorCode.INVALID_RESPONSE_FORMAT);
     }
     TelemetryHelper.setResultFormat(
         session.getConnectionContext(), statementId, manifest.getFormat());
@@ -66,7 +66,8 @@ class ExecutionResultFactory {
       default:
         String errorMessage = String.format("Invalid response format %s", manifest.getFormat());
         LOGGER.error(errorMessage);
-        throw new DatabricksParsingException(errorMessage, DatabricksDriverErrorCode.INVALID_STATE);
+        throw new DatabricksParsingException(
+            errorMessage, DatabricksDriverErrorCode.INVALID_RESPONSE_FORMAT);
     }
   }
 

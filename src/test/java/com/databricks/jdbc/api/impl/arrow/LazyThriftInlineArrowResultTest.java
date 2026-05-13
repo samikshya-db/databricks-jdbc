@@ -198,7 +198,7 @@ public class LazyThriftInlineArrowResultTest {
     DatabricksSQLException exception =
         assertThrows(DatabricksSQLException.class, () -> result.getObject(0));
     assertEquals("Cursor is before first row", exception.getMessage());
-    assertEquals(DatabricksDriverErrorCode.INVALID_STATE.name(), exception.getSQLState());
+    assertEquals(DatabricksDriverErrorCode.CURSOR_INVALID_POSITION.name(), exception.getSQLState());
   }
 
   @Test
@@ -323,13 +323,16 @@ public class LazyThriftInlineArrowResultTest {
     DatabricksSQLException negativeException =
         assertThrows(DatabricksSQLException.class, () -> result.getObject(-1));
     assertTrue(negativeException.getMessage().contains("Column index out of bounds"));
-    assertEquals(DatabricksDriverErrorCode.INVALID_STATE.name(), negativeException.getSQLState());
+    assertEquals(
+        DatabricksDriverErrorCode.COLUMN_INDEX_OUT_OF_BOUNDS.name(),
+        negativeException.getSQLState());
 
     // Test index beyond column count (we have 2 columns: 0 and 1)
     DatabricksSQLException beyondException =
         assertThrows(DatabricksSQLException.class, () -> result.getObject(2));
     assertTrue(beyondException.getMessage().contains("Column index out of bounds"));
-    assertEquals(DatabricksDriverErrorCode.INVALID_STATE.name(), beyondException.getSQLState());
+    assertEquals(
+        DatabricksDriverErrorCode.COLUMN_INDEX_OUT_OF_BOUNDS.name(), beyondException.getSQLState());
   }
 
   @Test

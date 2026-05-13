@@ -123,17 +123,18 @@ public class LazyThriftInlineArrowResult implements IExecutionResult {
     if (globalRowIndex == -1) {
       LOGGER.warn("Attempted to get object before calling next()");
       throw new DatabricksSQLException(
-          "Cursor is before first row", DatabricksDriverErrorCode.INVALID_STATE);
+          "Cursor is before first row", DatabricksDriverErrorCode.CURSOR_INVALID_POSITION);
     }
     if (currentChunkIterator == null) {
       LOGGER.warn("No current chunk available when getting object");
       throw new DatabricksSQLException(
-          "No current chunk available", DatabricksDriverErrorCode.INVALID_STATE);
+          "No current chunk available", DatabricksDriverErrorCode.CURSOR_INVALID_POSITION);
     }
     if (columnIndex < 0 || columnIndex >= columnInfos.size()) {
       LOGGER.warn("Column index {} out of bounds (size: {})", columnIndex, columnInfos.size());
       throw new DatabricksSQLException(
-          "Column index out of bounds " + columnIndex, DatabricksDriverErrorCode.INVALID_STATE);
+          "Column index out of bounds " + columnIndex,
+          DatabricksDriverErrorCode.COLUMN_INDEX_OUT_OF_BOUNDS);
     }
   }
 

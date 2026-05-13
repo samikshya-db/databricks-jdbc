@@ -89,7 +89,9 @@ public class JdbcThreadUtils {
             throw sqlEx;
           } else {
             throw new DatabricksSQLException(
-                "Error in parallel execution", e, DatabricksDriverErrorCode.INVALID_STATE);
+                "Error in parallel execution",
+                e,
+                DatabricksDriverErrorCode.THREAD_POOL_EXECUTION_ERROR);
           }
         } catch (TimeoutException e) {
           throw new DatabricksSQLException(

@@ -370,7 +370,7 @@ public class DatabricksThriftServiceClient implements IDatabricksClient, IDatabr
               + chunkStartRowOffset
               + " actual="
               + chunkLinks.get(0).getRowOffset();
-      throw new DatabricksSQLException(error, DatabricksDriverErrorCode.INVALID_STATE);
+      throw new DatabricksSQLException(error, DatabricksDriverErrorCode.THRIFT_RESPONSE_MISMATCH);
     }
 
     LOGGER.debug(
@@ -390,7 +390,7 @@ public class DatabricksThriftServiceClient implements IDatabricksClient, IDatabr
       throws DatabricksSQLException {
     throw new DatabricksSQLException(
         "getResultChunksData method is not yet implemented for thrift client",
-        DatabricksDriverErrorCode.INVALID_STATE);
+        DatabricksDriverErrorCode.NOT_IMPLEMENTED_OPERATION);
   }
 
   @Override

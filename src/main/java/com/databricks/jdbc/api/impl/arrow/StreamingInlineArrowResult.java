@@ -144,17 +144,18 @@ public class StreamingInlineArrowResult implements IExecutionResult {
     if (globalRowIndex == -1) {
       LOGGER.error("Attempted to access data before first row");
       throw new DatabricksSQLException(
-          "Cursor is before first row", DatabricksDriverErrorCode.INVALID_STATE);
+          "Cursor is before first row", DatabricksDriverErrorCode.CURSOR_INVALID_POSITION);
     }
     if (currentChunkIterator == null) {
       LOGGER.error("No current chunk available at row {}", globalRowIndex);
       throw new DatabricksSQLException(
-          "No current chunk available", DatabricksDriverErrorCode.INVALID_STATE);
+          "No current chunk available", DatabricksDriverErrorCode.CURSOR_INVALID_POSITION);
     }
     if (columnIndex < 0 || columnIndex >= columnInfos.size()) {
       LOGGER.error("Column index {} out of bounds (0-{})", columnIndex, columnInfos.size() - 1);
       throw new DatabricksSQLException(
-          "Column index out of bounds: " + columnIndex, DatabricksDriverErrorCode.INVALID_STATE);
+          "Column index out of bounds: " + columnIndex,
+          DatabricksDriverErrorCode.COLUMN_INDEX_OUT_OF_BOUNDS);
     }
   }
 

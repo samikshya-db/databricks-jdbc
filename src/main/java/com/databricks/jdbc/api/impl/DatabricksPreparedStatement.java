@@ -594,7 +594,8 @@ public class DatabricksPreparedStatement extends DatabricksStatement implements 
         bd = BigDecimal.valueOf(((Number) x).doubleValue());
       } else {
         throw new DatabricksSQLException(
-            "Invalid object type for DECIMAL/NUMERIC", DatabricksDriverErrorCode.INVALID_STATE);
+            "Invalid object type for DECIMAL/NUMERIC",
+            DatabricksDriverErrorCode.INPUT_VALIDATION_ERROR);
       }
       bd = bd.setScale(scaleOrLength, RoundingMode.HALF_UP); // Round up to nearest value.
       setObject(parameterIndex, bd, databricksType);
@@ -750,7 +751,7 @@ public class DatabricksPreparedStatement extends DatabricksStatement implements 
               "Unexpected number of bytes read from the stream. Expected: %d, got: %d",
               targetLength, sourceLength);
       LOGGER.error(errorMessage);
-      throw new DatabricksSQLException(errorMessage, DatabricksDriverErrorCode.INVALID_STATE);
+      throw new DatabricksSQLException(errorMessage, DatabricksDriverErrorCode.STREAM_READ_ERROR);
     }
   }
 
@@ -767,7 +768,8 @@ public class DatabricksPreparedStatement extends DatabricksStatement implements 
     if (x == null) {
       String errorMessage = "InputStream cannot be null";
       LOGGER.error(errorMessage);
-      throw new DatabricksSQLException(errorMessage, DatabricksDriverErrorCode.INVALID_STATE);
+      throw new DatabricksSQLException(
+          errorMessage, DatabricksDriverErrorCode.INPUT_VALIDATION_ERROR);
     }
     byte[] bytes = new byte[length];
     try {
@@ -776,7 +778,8 @@ public class DatabricksPreparedStatement extends DatabricksStatement implements 
     } catch (IOException e) {
       String errorMessage = "Error reading from the InputStream";
       LOGGER.error(errorMessage);
-      throw new DatabricksSQLException(errorMessage, e, DatabricksDriverErrorCode.INVALID_STATE);
+      throw new DatabricksSQLException(
+          errorMessage, e, DatabricksDriverErrorCode.STREAM_READ_ERROR);
     }
     return bytes;
   }
@@ -815,7 +818,7 @@ public class DatabricksPreparedStatement extends DatabricksStatement implements 
     } catch (IOException e) {
       String message = "Error reading from the InputStream";
       LOGGER.error(message);
-      throw new DatabricksSQLException(message, e, DatabricksDriverErrorCode.INVALID_STATE);
+      throw new DatabricksSQLException(message, e, DatabricksDriverErrorCode.STREAM_READ_ERROR);
     }
   }
 

@@ -116,13 +116,13 @@ public class StreamingColumnarResult implements IExecutionResult {
     if (globalRowIndex == -1) {
       LOGGER.error("Attempted to access data before first row");
       throw new DatabricksSQLException(
-          "Cursor is before first row", DatabricksDriverErrorCode.INVALID_STATE);
+          "Cursor is before first row", DatabricksDriverErrorCode.CURSOR_INVALID_POSITION);
     }
     if (currentBatch == null || currentBatchRowIndex < 0) {
       LOGGER.error(
           "Invalid cursor position: batch={}, rowIndex={}", currentBatch, currentBatchRowIndex);
       throw new DatabricksSQLException(
-          "Invalid cursor position", DatabricksDriverErrorCode.INVALID_STATE);
+          "Invalid cursor position", DatabricksDriverErrorCode.CURSOR_INVALID_POSITION);
     }
 
     // Type-safe: getData() returns ColumnarRowView directly, no casting!
@@ -130,12 +130,13 @@ public class StreamingColumnarResult implements IExecutionResult {
     if (view == null) {
       LOGGER.error("Batch data not available at row {}", globalRowIndex);
       throw new DatabricksSQLException(
-          "Batch data not available", DatabricksDriverErrorCode.INVALID_STATE);
+          "Batch data not available", DatabricksDriverErrorCode.CURSOR_INVALID_POSITION);
     }
     if (columnIndex < 0 || columnIndex >= view.getColumnCount()) {
       LOGGER.error("Column index {} out of bounds (0-{})", columnIndex, view.getColumnCount() - 1);
       throw new DatabricksSQLException(
-          "Column index out of bounds: " + columnIndex, DatabricksDriverErrorCode.INVALID_STATE);
+          "Column index out of bounds: " + columnIndex,
+          DatabricksDriverErrorCode.COLUMN_INDEX_OUT_OF_BOUNDS);
     }
 
     return view.getValue(currentBatchRowIndex, columnIndex);

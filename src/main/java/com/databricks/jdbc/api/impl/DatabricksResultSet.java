@@ -1997,7 +1997,7 @@ public class DatabricksResultSet implements IDatabricksResultSet, IDatabricksRes
     if (columnIndex <= 0) {
       throw new DatabricksSQLException(
           "Invalid column index",
-          DatabricksDriverErrorCode.INVALID_STATE,
+          DatabricksDriverErrorCode.COLUMN_INDEX_OUT_OF_BOUNDS,
           silenceNonTerminalExceptions);
     }
     Object object = executionResult.getObject(columnIndex - 1);

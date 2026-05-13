@@ -117,7 +117,7 @@ final class DatabricksThriftAccessor {
       while (cause != null) {
         if (cause instanceof HttpException) {
           throw new DatabricksHttpException(
-              cause.getMessage(), cause, DatabricksDriverErrorCode.INVALID_STATE);
+              cause.getMessage(), cause, DatabricksDriverErrorCode.THRIFT_RPC_ERROR);
         }
         cause = cause.getCause();
       }
@@ -129,7 +129,8 @@ final class DatabricksThriftAccessor {
       if (e instanceof SQLException) {
         throw new DatabricksSQLException(errorMessage, e, ((SQLException) e).getSQLState());
       } else {
-        throw new DatabricksSQLException(errorMessage, e, DatabricksDriverErrorCode.INVALID_STATE);
+        throw new DatabricksSQLException(
+            errorMessage, e, DatabricksDriverErrorCode.THRIFT_RPC_ERROR);
       }
     }
   }
@@ -170,7 +171,8 @@ final class DatabricksThriftAccessor {
               "Error while canceling operation from Thrift server. Request {%s}, Error {%s}",
               req.toString(), e.getMessage());
       LOGGER.error(e, errorMessage);
-      throw new DatabricksHttpException(errorMessage, e, DatabricksDriverErrorCode.INVALID_STATE);
+      throw new DatabricksHttpException(
+          errorMessage, e, DatabricksDriverErrorCode.THRIFT_RPC_ERROR);
     }
   }
 
@@ -183,7 +185,8 @@ final class DatabricksThriftAccessor {
               "Error while closing operation from Thrift server. Request {%s}, Error {%s}",
               req.toString(), e.getMessage());
       LOGGER.error(e, errorMessage);
-      throw new DatabricksHttpException(errorMessage, e, DatabricksDriverErrorCode.INVALID_STATE);
+      throw new DatabricksHttpException(
+          errorMessage, e, DatabricksDriverErrorCode.THRIFT_RPC_ERROR);
     }
   }
 
@@ -294,7 +297,8 @@ final class DatabricksThriftAccessor {
               "Error while receiving response from Thrift server. Request {%s}, Error {%s}",
               request, e.getMessage());
       LOGGER.error(e, errorMessage);
-      throw new DatabricksHttpException(errorMessage, e, DatabricksDriverErrorCode.INVALID_STATE);
+      throw new DatabricksHttpException(
+          errorMessage, e, DatabricksDriverErrorCode.THRIFT_RPC_ERROR);
     }
   }
 
@@ -409,7 +413,8 @@ final class DatabricksThriftAccessor {
       if (e instanceof DatabricksSQLException) {
         throw new DatabricksHttpException(errorMessage, ((DatabricksSQLException) e).getSQLState());
       } else {
-        throw new DatabricksHttpException(errorMessage, e, DatabricksDriverErrorCode.INVALID_STATE);
+        throw new DatabricksHttpException(
+            errorMessage, e, DatabricksDriverErrorCode.THRIFT_RPC_ERROR);
       }
     }
     StatementId statementId = new StatementId(response.getOperationHandle().operationId);
@@ -519,7 +524,8 @@ final class DatabricksThriftAccessor {
               "Error while receiving response from Thrift server. Request {%s}, Error {%s}",
               request.toString(), e.getMessage());
       LOGGER.error(e, errorMessage);
-      throw new DatabricksHttpException(errorMessage, e, DatabricksDriverErrorCode.INVALID_STATE);
+      throw new DatabricksHttpException(
+          errorMessage, e, DatabricksDriverErrorCode.THRIFT_RPC_ERROR);
     }
     StatementStatus executionStatus = getStatementStatus(response);
 
@@ -559,7 +565,8 @@ final class DatabricksThriftAccessor {
               "Error while fetching results from Thrift server. Request maxRows=%d, "
                   + "maxBytes=%d, Error {%s}",
               request.getMaxRows(), request.getMaxBytes(), e.getMessage());
-      throw new DatabricksHttpException(errorMessage, e, DatabricksDriverErrorCode.INVALID_STATE);
+      throw new DatabricksHttpException(
+          errorMessage, e, DatabricksDriverErrorCode.THRIFT_RPC_ERROR);
     }
 
     String statementId = StatementId.loggableStatementId(request.getOperationHandle());
@@ -625,7 +632,8 @@ final class DatabricksThriftAccessor {
                   + "startRowOffset=%d, maxRows=%d, Error {%s}",
               startRowOffset, request.getMaxRows(), e.getMessage());
       LOGGER.error(e, errorMessage);
-      throw new DatabricksHttpException(errorMessage, e, DatabricksDriverErrorCode.INVALID_STATE);
+      throw new DatabricksHttpException(
+          errorMessage, e, DatabricksDriverErrorCode.THRIFT_RPC_ERROR);
     }
 
     verifySuccessStatus(

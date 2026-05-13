@@ -571,12 +571,12 @@ public class DBFSVolumeClient implements IDatabricksVolumeClient, Closeable {
     if (volumeOperationProcessor.getStatus() == VolumeOperationStatus.FAILED) {
       throw new DatabricksSQLException(
           "Volume operation failed: " + volumeOperationProcessor.getErrorMessage(),
-          DatabricksDriverErrorCode.INVALID_STATE);
+          DatabricksDriverErrorCode.VOLUME_OPERATION_INVALID_STATE);
     }
     if (volumeOperationProcessor.getStatus() == VolumeOperationStatus.ABORTED) {
       throw new DatabricksSQLException(
           "Volume operation aborted: " + volumeOperationProcessor.getErrorMessage(),
-          DatabricksDriverErrorCode.INVALID_STATE);
+          DatabricksDriverErrorCode.VOLUME_OPERATION_INVALID_STATE);
     }
   }
 
